@@ -24,6 +24,12 @@ Sessões podem receber recursos de arquivo, repositório GitHub e memory store. 
 
 Deployments podem iniciar execuções e produzir registros append-only de `deployment_run`. Uma execução registra `session_id` em sucesso ou um erro tipado em falha. Entre os erros documentados estão ambiente ou agente arquivado, recurso ausente, rate limit, bloqueio de egress MCP e incompatibilidade de recursos com ambiente self-hosted.
 
+A listagem de runs usa paginação por cursor opaco e permite filtros temporais, por deployment, tipo de gatilho e presença de erro. O contrato mantém a invariável de resultado: exatamente um entre `session_id` e `error` deve estar preenchido.
+
+Os erros de criação de sessão formam uma taxonomia útil para recovery: recurso ausente ou arquivado, organização desabilitada, rate limit, rejeição de validação, incompatibilidade de recursos self-hosted, bloqueio de egress MCP e falha desconhecida. Essa classificação é referência para distinguir falhas recuperáveis de falhas permanentes, sem importar os tipos externos para o core.
+
 ## Implicação para o NetStudio-Codex
 
 O padrão útil é separar configuração durável, sessão stateful, recursos montáveis, unidade de trabalho e registro de execução. A adoção deve ser feita por RFC e testes, evitando copiar contratos externos diretamente para o core local.
+
+Para o futuro `AgentRuntime`, o material reforça três decisões: histórico de execução append-only, estado terminal mutuamente exclusivo entre sucesso e erro e erros classificados por política de retry/recovery. Paginação e filtros pertencem à camada de consulta do histórico, não ao loop de decisão do agente.
