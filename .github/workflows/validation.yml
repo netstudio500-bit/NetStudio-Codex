@@ -18,10 +18,29 @@ jobs:
       - name: Install project dependencies
         run: poetry install --with dev --no-root
       - name: Ruff
+        id: ruff
+        continue-on-error: true
         run: poetry run ruff check .
       - name: Black
+        id: black
+        continue-on-error: true
         run: poetry run black --check .
       - name: MyPy
+        id: mypy
+        continue-on-error: true
         run: poetry run mypy netstudio
       - name: Pytest
+        id: pytest
+        continue-on-error: true
         run: poetry run pytest -v
+      - name: Enforce validation result
+        if: always()
+        run: |
+          echo "Ruff: ${{ steps.ruff.outcome }}"
+          echo "Black: ${{ steps.black.outcome }}"
+          echo "MyPy: ${{ steps.mypy.outcome }}"
+          echo "Pytest: ${{ steps.pytest.outcome }}"
+          test "${{ steps.ruff.outcome }}" = "success"
+          test "${{ steps.black.outcome }}" = "success"
+          test "${{ steps.mypy.outcome }}" = "success"
+          test "${{ steps.pytest.outcome }}" = "success"
