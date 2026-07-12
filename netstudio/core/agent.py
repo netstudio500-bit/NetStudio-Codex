@@ -2,15 +2,17 @@
 
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, PrivateAttr
 
 from netstudio.core.logger import get_logger
+from netstudio.llm.base import GenerationRequest, LLMProvider
+from netstudio.llm.ollama import OllamaProvider
 
 logger = get_logger(__name__)
 
 
 class Agent(BaseModel):
-    """Definição base de um agente."""
+    """Agente mínimo funcional conectado a um provedor LLM."""
 
     name: str = Field(..., description="Nome do agente")
     description: str = Field(default="", description="Descrição do agente")
@@ -19,41 +21,51 @@ class Agent(BaseModel):
     temperature: float = Field(default=0.7, ge=0.0, le=1.0)
     max_tokens: int = Field(default=2048, gt=0)
 
-    class Config:
-        """Pydantic config."""
-        arbitrary_types_allowed = True
+    _provider: LLMProvider = PrivateAttr()
+    _memories: list[str] = PrivateAttr(default_factory=list)
+
+    def __init__(self, provider: Optional[LLMProvider] = None, **data: object) -> None:
+        """Inicializa o agente com provider injetável para execução e testes."""
+        super().__init__(**data)
+        self._provider = provider or OllamaProvider(model=self.model)
 
     async def execute(self, task: str) -> str:
-        """Executar uma tarefa.
-
-        Args:
-            task: Tarefa a executar
-
-        Returns:
-            Resultado da execução
-        """
+        """Executa uma tarefa usando o LLM configurado."""
         logger.info(f"Executing task: {task}")
-        # TODO: Implementar execução real
-        return f"Executed: {task}"
+        context = self._memory_context()
+        prompt = task if not context else f"Memória relevante:\n{context}\n\nTarefa:\n{task}"
+        response = await self._provider.generate(
+            GenerationRequest(
+                prompt=prompt,
+                system_prompt=self.system_prompt or None,
+                temperature=self.temperature,
+                max_tokens=self.max_tokens,
+            )
+        )
+        return response.text
 
     async def think(self, context: str) -> str:
-        """Pensar sobre um contexto.
-
-        Args:
-            context: Contexto para pensar
-
-        Returns:
-            Resultado do pensamento
-        """
-        logger.info(f"Thinking about: {context}")
-        # TODO: Implementar raciocínio real
-        return f"Thought about: {context}"
+        """Solicita ao LLM análise do contexto sem simular raciocínio local."""
+        logger.info("Thinking about provided context")
+        response = await self._provider.generate(
+            GenerationRequest(
+                prompt=f"Analise o contexto e proponha o próximo passo útil:\n\n{context}",
+                system_prompt=self.system_prompt or None,
+                temperature=self.temperature,
+                max_tokens=self.max_tokens,
+            )
+        )
+        return response.text
 
     async def remember(self, memory: str) -> None:
-        """Armazenar memória.
+        """Armazena memória de sessão em processo."""
+        logger.info("Storing session memory")
+        self._memories.append(memory)
 
-        Args:
-            memory: Memória a armazenar
-        """
-        logger.info(f"Storing memory: {memory}")
-        # TODO: Implementar armazenamento real
+    async def close(self) -> None:
+        """Libera recursos do provider."""
+        await self._provider.close()
+
+    def _memory_context(self) -> str:
+        """Monta contexto curto com as memórias da sessão."""
+        return "\n".join(f"- {memory}" for memory in self._memories[-10:])
