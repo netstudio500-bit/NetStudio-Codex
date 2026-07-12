@@ -1,137 +1,198 @@
 """Ollama LLM provider implementation."""
 
-from typing import Any, Dict, List, Optional
+from typing import Optional
 
 import httpx
 
 from netstudio.core.config import get_config
 from netstudio.core.logger import get_logger
-from netstudio.llm.base import LLMProvider
+from netstudio.llm.base import GenerationRequest, GenerationResponse, LLMProvider
 
 logger = get_logger(__name__)
 
 
 class OllamaProvider(LLMProvider):
-    """Ollama LLM provider implementation."""
+    """Ollama language model provider implementation.
+
+    Provides integration with Ollama for running local language models.
+    Supports health checks, model listing, and text generation.
+    """
 
     def __init__(self, base_url: Optional[str] = None, model: Optional[str] = None):
         """Initialize Ollama provider.
 
         Args:
-            base_url: Ollama base URL (defaults to config)
-            model: Model name (defaults to config)
+            base_url: Ollama server base URL. If not provided, uses config.
+            model: Default model name. If not provided, uses config.
+
+        Example:
+            provider = OllamaProvider()
+            provider = OllamaProvider("http://localhost:11434", "llama2")
         """
         config = get_config()
-        self.base_url = base_url or config.ollama_base_url
-        self.model = model or config.ollama_model
-        self.timeout = 30.0
-        logger.info(f"Initialized OllamaProvider: {self.base_url}, model={self.model}")
+        self._base_url = base_url or config.ollama_base_url
+        self._model = model or config.ollama_model
+        self._timeout = 30.0
+        self._client: Optional[httpx.AsyncClient] = None
+        logger.info(
+            f"Initialized OllamaProvider: base_url={self._base_url}, model={self._model}"
+        )
 
-    async def health(self) -> Dict[str, Any]:
+    @property
+    def name(self) -> str:
+        """Get provider name.
+
+        Returns:
+            str: Provider identifier.
+        """
+        return "ollama"
+
+    async def health(self) -> bool:
         """Check health of Ollama server.
 
+        Attempts to connect to the Ollama API tags endpoint
+        to verify the server is running and responding.
+
         Returns:
-            dict: Health status
+            bool: True if Ollama is healthy and reachable.
 
         Raises:
-            RuntimeError: If connection fails
+            ConnectionError: If Ollama cannot be reached.
         """
         try:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
-                response = await client.get(f"{self.base_url}/api/tags")
-                if response.status_code == 200:
-                    logger.info("Ollama health check: OK")
-                    return {
-                        "status": "healthy",
-                        "provider": "ollama",
-                        "base_url": self.base_url,
-                        "model": self.model,
-                    }
-                else:
-                    logger.error(f"Ollama health check failed: {response.status_code}")
-                    raise RuntimeError(f"Ollama returned status {response.status_code}")
-        except Exception as e:
+            async with httpx.AsyncClient(timeout=self._timeout) as client:
+                response = await client.get(f"{self._base_url}/api/tags")
+                is_healthy = response.status_code == 200
+                logger.info(f"Ollama health check: {'OK' if is_healthy else 'FAILED'}")
+                if not is_healthy:
+                    raise ConnectionError(
+                        f"Ollama returned status {response.status_code}"
+                    )
+                return is_healthy
+        except httpx.RequestError as e:
             logger.error(f"Ollama connection error: {e}")
-            raise RuntimeError(f"Failed to connect to Ollama: {e}")
+            raise ConnectionError(f"Failed to connect to Ollama at {self._base_url}") from e
 
-    async def list_models(self) -> List[str]:
+    async def list_models(self) -> list[str]:
         """List available models in Ollama.
 
+        Fetches the list of all models currently available
+        in the Ollama server.
+
         Returns:
-            List[str]: List of model names
+            list[str]: List of model identifiers.
 
         Raises:
-            RuntimeError: If request fails
+            ConnectionError: If Ollama cannot be reached.
         """
         try:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
-                response = await client.get(f"{self.base_url}/api/tags")
-                if response.status_code == 200:
-                    data = response.json()
-                    models = [m["name"] for m in data.get("models", [])]
-                    logger.info(f"Found {len(models)} models: {models}")
-                    return models
-                else:
-                    logger.error(f"Failed to list models: {response.status_code}")
-                    raise RuntimeError(f"Ollama returned status {response.status_code}")
-        except Exception as e:
+            async with httpx.AsyncClient(timeout=self._timeout) as client:
+                response = await client.get(f"{self._base_url}/api/tags")
+                if response.status_code != 200:
+                    raise ConnectionError(
+                        f"Ollama returned status {response.status_code}"
+                    )
+                data = response.json()
+                models = [m["name"] for m in data.get("models", [])]
+                logger.info(f"Found {len(models)} models in Ollama")
+                return models
+        except httpx.RequestError as e:
             logger.error(f"Failed to list models: {e}")
-            raise RuntimeError(f"Failed to list models: {e}")
+            raise ConnectionError(f"Failed to connect to Ollama: {e}") from e
 
-    async def generate(
-        self,
-        prompt: str,
-        model: Optional[str] = None,
-        temperature: float = 0.7,
-        max_tokens: int = 2048,
-    ) -> str:
+    async def generate(self, request: GenerationRequest) -> GenerationResponse:
         """Generate text using Ollama.
 
+        Uses the specified model to generate text based on the provided prompt
+        and parameters.
+
         Args:
-            prompt: Input prompt
-            model: Model name (uses default if not specified)
-            temperature: Sampling temperature
-            max_tokens: Maximum tokens
+            request: Generation request with prompt and parameters.
 
         Returns:
-            str: Generated text
+            GenerationResponse: Generated text and metadata.
 
         Raises:
-            RuntimeError: If generation fails
+            ConnectionError: If Ollama cannot be reached.
+            ValueError: If request parameters are invalid.
+            RuntimeError: If generation fails.
+
+        Example:
+            request = GenerationRequest(prompt="Hello world")
+            response = await provider.generate(request)
+            print(response.text)
         """
-        model_name = model or self.model
-        logger.info(f"Generating with model={model_name}, temp={temperature}")
+        model = self._model
+        logger.info(
+            f"Generating with model={model}, "
+            f"temp={request.temperature}, "
+            f"max_tokens={request.max_tokens}"
+        )
 
         try:
             async with httpx.AsyncClient(timeout=300) as client:
+                payload = {
+                    "model": model,
+                    "prompt": request.prompt,
+                    "stream": False,
+                    "options": {
+                        "temperature": request.temperature,
+                    },
+                }
+
+                if request.system_prompt:
+                    payload["system"] = request.system_prompt
+
+                if request.max_tokens:
+                    payload["options"]["num_predict"] = request.max_tokens
+
                 response = await client.post(
-                    f"{self.base_url}/api/generate",
-                    json={
-                        "model": model_name,
-                        "prompt": prompt,
-                        "stream": False,
-                        "options": {
-                            "temperature": temperature,
-                            "num_predict": max_tokens,
-                        },
+                    f"{self._base_url}/api/generate",
+                    json=payload,
+                )
+
+                if response.status_code != 200:
+                    raise RuntimeError(
+                        f"Ollama returned status {response.status_code}"
+                    )
+
+                data = response.json()
+                generated_text = data.get("response", "")
+
+                logger.info(f"Generated {len(generated_text)} characters")
+
+                return GenerationResponse(
+                    text=generated_text,
+                    model=model,
+                    prompt_tokens=data.get("prompt_eval_count"),
+                    completion_tokens=data.get("eval_count"),
+                    total_tokens=(
+                        (data.get("prompt_eval_count") or 0)
+                        + (data.get("eval_count") or 0)
+                    ),
+                    finish_reason="stop",
+                    metadata={
+                        "load_duration": data.get("load_duration"),
+                        "prompt_eval_duration": data.get("prompt_eval_duration"),
+                        "eval_duration": data.get("eval_duration"),
                     },
                 )
-                if response.status_code == 200:
-                    data = response.json()
-                    generated_text = data.get("response", "")
-                    logger.info(f"Generated {len(generated_text)} characters")
-                    return generated_text
-                else:
-                    logger.error(f"Generation failed: {response.status_code}")
-                    raise RuntimeError(f"Ollama returned status {response.status_code}")
-        except Exception as e:
-            logger.error(f"Generation error: {e}")
-            raise RuntimeError(f"Failed to generate text: {e}")
 
-    def model_name(self) -> str:
-        """Get the default model name.
+        except httpx.RequestError as e:
+            logger.error(f"Generation request failed: {e}")
+            raise ConnectionError(f"Failed to connect to Ollama: {e}") from e
+        except (KeyError, ValueError) as e:
+            logger.error(f"Invalid response format: {e}")
+            raise RuntimeError(f"Invalid response from Ollama: {e}") from e
 
-        Returns:
-            str: Model name
+    async def close(self) -> None:
+        """Close the connection and cleanup resources.
+
+        This method should be called when the provider is no longer needed.
+        Currently, httpx clients are created per request, so this is a no-op,
+        but the method is implemented for consistency with the interface.
         """
-        return self.model
+        if self._client:
+            await self._client.aclose()
+            self._client = None
+        logger.info("OllamaProvider closed")
