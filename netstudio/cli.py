@@ -11,8 +11,8 @@ def main() -> None:
         main_cli()
     except KeyboardInterrupt:
         sys.exit(0)
-    except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+    except Exception as exc:
+        print(f"Error: {exc}", file=sys.stderr)
         sys.exit(1)
 
 
