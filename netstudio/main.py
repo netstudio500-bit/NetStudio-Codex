@@ -2,7 +2,7 @@
 
 import asyncio
 import sys
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
 
 from netstudio.core.config import get_config
 from netstudio.core.logger import get_logger
@@ -10,7 +10,7 @@ from netstudio.core.logger import get_logger
 logger = get_logger(__name__)
 
 
-async def main(args) -> None:
+async def main(args: Namespace) -> None:
     """Função main."""
     config = get_config()
     logger.info(f"Starting {config.app_name} v{config.app_version}")
@@ -28,15 +28,11 @@ async def main(args) -> None:
 def cli() -> None:
     """Interface de linha de comando."""
     parser = ArgumentParser(description="NetStudio-Codex")
-    parser.add_argument(
-        "--debug",
-        action="store_true",
-        help="Enable debug mode"
-    )
+    parser.add_argument("--debug", action="store_true", help="Enable debug mode")
     parser.add_argument(
         "--version",
         action="version",
-        version="NetStudio-Codex 0.1.0"
+        version="NetStudio-Codex 0.1.0",
     )
 
     args = parser.parse_args()
@@ -46,8 +42,8 @@ def cli() -> None:
     except KeyboardInterrupt:
         logger.info("Application terminated by user")
         sys.exit(0)
-    except Exception as e:
-        logger.error(f"Fatal error: {e}")
+    except Exception as exc:
+        logger.error(f"Fatal error: {exc}")
         sys.exit(1)
 
 
