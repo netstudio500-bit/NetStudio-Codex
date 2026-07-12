@@ -119,7 +119,9 @@ class TestLLMProviderAbstraction:
             async def list_models(self) -> list[str]:
                 return ["model1", "model2"]
 
-            async def generate(self, request: GenerationRequest) -> GenerationResponse:
+            async def generate(
+                self, request: GenerationRequest
+            ) -> GenerationResponse:
                 return GenerationResponse(text="response", model="model1")
 
             async def close(self) -> None:
