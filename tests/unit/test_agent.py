@@ -1,7 +1,5 @@
 """Tests for agent."""
 
-from typing import Optional
-
 import pytest
 
 from netstudio.core.agent import Agent
