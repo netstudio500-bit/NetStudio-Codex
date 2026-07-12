@@ -1,11 +1,9 @@
 """FastAPI application for NetStudio-Codex."""
 
 from fastapi import FastAPI
-from fastapi.responses import JSONResponse
 
 from netstudio import __version__
 
-# Create FastAPI app
 app = FastAPI(
     title="NetStudio-Codex",
     description="Um Codex local, gratuito e modular para agentes de IA",
@@ -16,8 +14,8 @@ app = FastAPI(
 
 
 @app.get("/", tags=["Info"])
-async def root() -> dict:
-    """Root endpoint - API info."""
+async def root() -> dict[str, str]:
+    """Return API information."""
     return {
         "name": "NetStudio-Codex",
         "version": __version__,
@@ -26,6 +24,6 @@ async def root() -> dict:
 
 
 @app.get("/health", tags=["Health"])
-async def health() -> dict:
-    """Health check endpoint."""
+async def health() -> dict[str, str]:
+    """Return API health status."""
     return {"status": "healthy"}
