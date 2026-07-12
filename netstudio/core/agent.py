@@ -21,6 +21,7 @@ class Agent(BaseModel):
 
     class Config:
         """Pydantic config."""
+
         arbitrary_types_allowed = True
 
     async def execute(self, task: str) -> str:
