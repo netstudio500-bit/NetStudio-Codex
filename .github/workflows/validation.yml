@@ -13,13 +13,15 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - name: Install Poetry
+        run: pip install poetry
       - name: Install project
-        run: pip install -e ".[dev]"
+        run: poetry install --with dev
       - name: Ruff
-        run: ruff check .
+        run: poetry run ruff check .
       - name: Black
-        run: black --check .
+        run: poetry run black --check .
       - name: MyPy
-        run: mypy netstudio
+        run: poetry run mypy netstudio
       - name: Pytest
-        run: pytest -v
+        run: poetry run pytest -v
