@@ -130,12 +130,8 @@ async def test_cli_without_read_blocks_list_files_before_observation(
 
 
 @pytest.mark.asyncio
-async def test_local_execution_prompt_hides_both_read_tools(
-    tmp_path: Path, monkeypatch
-) -> None:
-    provider = DiscoveryProvider(
-        [json.dumps({"action": "complete", "content": "LOCAL ONLY"})]
-    )
+async def test_local_execution_prompt_hides_both_read_tools(tmp_path: Path, monkeypatch) -> None:
+    provider = DiscoveryProvider([json.dumps({"action": "complete", "content": "LOCAL ONLY"})])
     captured: dict[str, Any] = {}
     install_real_agent(monkeypatch, provider, captured)
     monkeypatch.chdir(tmp_path)
