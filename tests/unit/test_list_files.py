@@ -113,9 +113,7 @@ async def test_list_files_recurses_with_relative_deterministic_paths(tmp_path: P
         {"path": "src/module.txt", "type": "file"},
         {"path": "z.txt", "type": "file"},
     ]
-    assert [entry["path"] for entry in listed] == sorted(
-        entry["path"] for entry in listed
-    )
+    assert [entry["path"] for entry in listed] == sorted(entry["path"] for entry in listed)
     assert all(not Path(entry["path"]).is_absolute() for entry in listed)
     assert result.metadata["recursive"] is True
     assert result.metadata["count"] == 4
