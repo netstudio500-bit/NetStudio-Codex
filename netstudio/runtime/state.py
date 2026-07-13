@@ -61,4 +61,6 @@ class InvalidStateTransition(ValueError):
 def validate_transition(current: RuntimeState, target: RuntimeState) -> None:
     """Validate one runtime state transition."""
     if target not in _ALLOWED_TRANSITIONS[current]:
-        raise InvalidStateTransition(f"Invalid runtime transition: {current.value} -> {target.value}")
+        raise InvalidStateTransition(
+            f"Invalid runtime transition: {current.value} -> {target.value}"
+        )
