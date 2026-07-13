@@ -17,9 +17,7 @@ class RuntimeState(str, Enum):
     CANCELLED = "CANCELLED"
 
 
-TERMINAL_STATES = frozenset(
-    {RuntimeState.COMPLETED, RuntimeState.FAILED, RuntimeState.CANCELLED}
-)
+TERMINAL_STATES = frozenset({RuntimeState.COMPLETED, RuntimeState.FAILED, RuntimeState.CANCELLED})
 
 _ALLOWED_TRANSITIONS: dict[RuntimeState, frozenset[RuntimeState]] = {
     RuntimeState.IDLE: frozenset({RuntimeState.PLANNING, RuntimeState.CANCELLED}),
