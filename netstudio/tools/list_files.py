@@ -6,6 +6,7 @@ from typing import Any
 
 from netstudio.runtime.capabilities import ToolCapability
 from netstudio.tools.base import Tool, ToolMetadata, ToolResult
+from netstudio.tools.workspace_paths import is_internal_path
 
 DEFAULT_MAX_ENTRIES = 1000
 
@@ -23,64 +24,34 @@ class ListFilesTool(Tool):
 
     @property
     def metadata(self) -> ToolMetadata:
-        """Declare the list_files contract and READ capability."""
-        return ToolMetadata(
-            name="list_files",
-            description=(
-                "List files, directories, and symlinks inside the authorized workspace; "
-                "directory symlinks are never traversed"
-            ),
-            capabilities=frozenset({ToolCapability.READ}),
-            argument_schema={
-                "type": "object",
-                "properties": {
-                    "path": {"type": "string", "minLength": 1, "default": "."},
-                    "recursive": {"type": "boolean", "default": False},
-                },
-                "additionalProperties": False,
-            },
-        )
+        return ToolMetadata(name="list_files", description="List files, directories, and symlinks inside the authorized workspace; directory symlinks are never traversed", capabilities=frozenset({ToolCapability.READ}), argument_schema={"type": "object", "properties": {"path": {"type": "string", "minLength": 1, "default": "."}, "recursive": {"type": "boolean", "default": False}}, "additionalProperties": False})
 
     async def execute(self, arguments: dict[str, Any]) -> ToolResult:
-        """Validate, resolve, enumerate, and bound workspace entries."""
         validation_error = self._validate_arguments(arguments)
         if validation_error is not None:
             return self._failure("invalid_arguments", validation_error)
-
         requested = arguments.get("path", ".")
         recursive = arguments.get("recursive", False)
         try:
             root = (self._workspace_root / Path(requested)).resolve(strict=False)
         except (OSError, RuntimeError) as exc:
             return self._failure("list_failed", f"Path resolution failed: {exc}")
-
         if not root.is_relative_to(self._workspace_root):
-            return self._failure(
-                "path_outside_workspace", "Path resolves outside the authorized workspace"
-            )
+            return self._failure("path_outside_workspace", "Path resolves outside the authorized workspace")
+        if is_internal_path(self._workspace_root, root):
+            return self._failure("reserved_internal_path", "Reserved NetStudio area is inaccessible")
         if not root.exists():
             return self._failure("path_not_found", "Path does not exist")
         if not root.is_dir():
             return self._failure("not_a_directory", "Path is not a directory")
-
         try:
             entries = self._enumerate(root, recursive)
         except OSError as exc:
             return self._failure("list_failed", f"Unable to enumerate directory: {exc}")
-
         truncated = len(entries) > self._max_entries
         selected = entries[: self._max_entries]
         root_relative = root.relative_to(self._workspace_root).as_posix() or "."
-        return ToolResult(
-            success=True,
-            output=json.dumps({"entries": selected}, ensure_ascii=False, sort_keys=True),
-            metadata={
-                "root": root_relative,
-                "recursive": recursive,
-                "count": len(selected),
-                "truncated": truncated,
-            },
-        )
+        return ToolResult(success=True, output=json.dumps({"entries": selected}, ensure_ascii=False, sort_keys=True), metadata={"root": root_relative, "recursive": recursive, "count": len(selected), "truncated": truncated})
 
     def _enumerate(self, root: Path, recursive: bool) -> list[dict[str, str]]:
         entries: list[dict[str, str]] = []
@@ -89,6 +60,8 @@ class ListFilesTool(Tool):
 
     def _visit(self, directory: Path, recursive: bool, entries: list[dict[str, str]]) -> None:
         for child in sorted(directory.iterdir(), key=lambda path: path.name):
+            if is_internal_path(self._workspace_root, child):
+                continue
             entry = self._entry(child)
             if entry is not None:
                 entries.append(entry)
