@@ -71,18 +71,26 @@ def python_command(script: str) -> str:
     return shlex.join(argv)
 
 
-def shell_responses(command: str, final: str = "CLI SHELL OK") -> list[str]:
-    """Return the tool then complete decisions for a deterministic provider."""
+def tool_responses(
+    tool_name: str, arguments: dict[str, Any], final: str
+) -> list[str]:
+    """Return one tool decision followed by explicit completion."""
     return [
         json.dumps(
-            {
-                "action": "tool",
-                "tool_name": "shell",
-                "arguments": {"command": command},
-            }
+            {"action": "tool", "tool_name": tool_name, "arguments": arguments}
         ),
         json.dumps({"action": "complete", "content": final}),
     ]
+
+
+def shell_responses(command: str, final: str = "CLI SHELL OK") -> list[str]:
+    """Return shell then complete decisions for a deterministic provider."""
+    return tool_responses("shell", {"command": command}, final)
+
+
+def read_responses(path: str, final: str = "CLI READ OK") -> list[str]:
+    """Return read_file then complete decisions for a deterministic provider."""
+    return tool_responses("read_file", {"path": path}, final)
 
 
 def install_real_agent_factory(
@@ -150,9 +158,12 @@ async def test_interactive_real_agent_uses_runtime_and_closes_provider(monkeypat
     assert "interactive OK" in capsys.readouterr().out
 
 
-def test_parser_accepts_local_execution_flag() -> None:
-    args = build_parser().parse_args(["do work", "--allow-local-execution"])
+def test_parser_accepts_explicit_capability_flags() -> None:
+    args = build_parser().parse_args(
+        ["do work", "--allow-read", "--allow-local-execution"]
+    )
 
+    assert args.allow_read is True
     assert args.allow_local_execution is True
 
 
@@ -162,21 +173,39 @@ def test_cli_policy_is_empty_without_flag() -> None:
     assert build_policy(args).allowed_capabilities == frozenset()
 
 
-def test_cli_policy_grants_only_local_execution_with_flag() -> None:
-    args = build_parser().parse_args(["do work", "--allow-local-execution"])
+@pytest.mark.parametrize(
+    ("flags", "expected"),
+    [
+        (["--allow-read"], frozenset({ToolCapability.READ})),
+        (
+            ["--allow-local-execution"],
+            frozenset({ToolCapability.LOCAL_EXECUTION}),
+        ),
+        (
+            ["--allow-read", "--allow-local-execution"],
+            frozenset({ToolCapability.READ, ToolCapability.LOCAL_EXECUTION}),
+        ),
+    ],
+)
+def test_cli_policy_grants_only_explicit_capabilities(
+    flags: list[str], expected: frozenset[ToolCapability]
+) -> None:
+    args = build_parser().parse_args(["do work", *flags])
 
-    assert build_policy(args).allowed_capabilities == frozenset({ToolCapability.LOCAL_EXECUTION})
+    assert build_policy(args).allowed_capabilities == expected
 
 
-def test_help_documents_workspace_scoped_local_execution(capsys) -> None:
+def test_help_documents_workspace_scoped_capability_flags(capsys) -> None:
     with pytest.raises(SystemExit) as exit_info:
         build_parser().parse_args(["--help"])
 
     help_text = capsys.readouterr().out
     normalized_help = " ".join(help_text.split())
     assert exit_info.value.code == 0
+    assert "--allow-read" in help_text
+    assert "read UTF-8 text files inside the authorized workspace" in normalized_help
     assert "--allow-local-execution" in help_text
-    assert "inside the authorized workspace" in normalized_help
+    assert "execute local processes inside the authorized workspace" in normalized_help
     assert "unrestricted" not in help_text.lower()
     assert "sandbox" not in help_text.lower()
 
@@ -201,12 +230,14 @@ async def test_cli_without_flag_blocks_shell_and_does_not_execute_process(
     assert captured["policy"].allowed_capabilities == frozenset()
     assert captured["workspace_root"] == tmp_path.resolve()
     assert "available_tools=[]" in provider.requests[0].prompt
-    assert "Local process execution authorized" not in capsys.readouterr().out
+    output = capsys.readouterr().out
+    assert "Local process execution authorized" not in output
+    assert "Workspace file reading authorized." not in output
     assert provider.closed is True
 
 
 @pytest.mark.asyncio
-async def test_cli_with_flag_runs_shell_in_workspace_and_completes(
+async def test_cli_with_local_execution_runs_shell_in_workspace_and_completes(
     tmp_path: Path, monkeypatch, capsys
 ) -> None:
     marker = tmp_path / "executed.txt"
@@ -223,15 +254,72 @@ async def test_cli_with_flag_runs_shell_in_workspace_and_completes(
     await main(args)
 
     output = capsys.readouterr().out
-    assert captured["policy"] == PolicySnapshot(frozenset({ToolCapability.LOCAL_EXECUTION}))
+    assert captured["policy"] == PolicySnapshot(
+        frozenset({ToolCapability.LOCAL_EXECUTION})
+    )
     assert captured["workspace_root"] == tmp_path.resolve()
     assert marker.read_text() == str(tmp_path.resolve())
     assert "Local process execution authorized for this workspace." in output
     assert "CLI SHELL OK" in output
     assert '"name": "shell"' in provider.requests[0].prompt
+    assert '"name": "read_file"' not in provider.requests[0].prompt
     assert "CLI_PROCESS_OK" in provider.requests[1].prompt
     assert '"tool_name": "shell"' in provider.requests[1].prompt
     assert '"success": true' in provider.requests[1].prompt
+    assert provider.closed is True
+
+
+@pytest.mark.asyncio
+async def test_cli_without_allow_read_blocks_read_file_before_observation(
+    tmp_path: Path, monkeypatch, capsys
+) -> None:
+    target = tmp_path / "target.txt"
+    target.write_text("READ_FILE_OK", encoding="utf-8")
+    provider = RuntimeProvider(read_responses("target.txt"))
+    captured: dict[str, Any] = {}
+    install_real_agent_factory(monkeypatch, provider, captured)
+    monkeypatch.chdir(tmp_path)
+    args = build_parser().parse_args(["read target"])
+
+    with pytest.raises(AgentRuntimeError) as error:
+        await main(args)
+
+    assert error.value.failure.code == "tool_denied_or_missing"
+    assert captured["policy"].allowed_capabilities == frozenset()
+    assert len(provider.requests) == 1
+    assert '"name": "read_file"' not in provider.requests[0].prompt
+    assert "READ_FILE_OK" not in provider.requests[0].prompt
+    assert "Workspace file reading authorized." not in capsys.readouterr().out
+    assert provider.closed is True
+
+
+@pytest.mark.asyncio
+async def test_cli_with_allow_read_reads_real_file_observes_and_completes(
+    tmp_path: Path, monkeypatch, capsys
+) -> None:
+    target = tmp_path / "target.txt"
+    target.write_text("READ_FILE_OK", encoding="utf-8")
+    provider = RuntimeProvider(read_responses("target.txt"))
+    captured: dict[str, Any] = {}
+    install_real_agent_factory(monkeypatch, provider, captured)
+    monkeypatch.chdir(tmp_path)
+    args = build_parser().parse_args(["read target", "--allow-read"])
+
+    await main(args)
+
+    output = capsys.readouterr().out
+    assert captured["policy"] == PolicySnapshot(frozenset({ToolCapability.READ}))
+    assert captured["workspace_root"] == tmp_path.resolve()
+    assert "Workspace file reading authorized." in output
+    assert "CLI READ OK" in output
+    assert '"name": "read_file"' in provider.requests[0].prompt
+    assert '"name": "shell"' not in provider.requests[0].prompt
+    assert "READ_FILE_OK" in provider.requests[1].prompt
+    assert '"tool_name": "read_file"' in provider.requests[1].prompt
+    assert '"success": true' in provider.requests[1].prompt
+    assert '"path": "target.txt"' in provider.requests[1].prompt
+    assert '"encoding": "utf-8"' in provider.requests[1].prompt
+    assert len(provider.requests) == 2
     assert provider.closed is True
 
 
@@ -252,7 +340,9 @@ async def test_interactive_cli_preserves_explicit_policy_for_session(
     await main(args)
 
     output = capsys.readouterr().out
-    assert captured["policy"].allowed_capabilities == frozenset({ToolCapability.LOCAL_EXECUTION})
+    assert captured["policy"].allowed_capabilities == frozenset(
+        {ToolCapability.LOCAL_EXECUTION}
+    )
     assert len(provider.requests) == 2
     assert '"name": "shell"' in provider.requests[0].prompt
     assert "INTERACTIVE_SHELL_OK" in provider.requests[1].prompt
