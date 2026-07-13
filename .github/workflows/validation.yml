@@ -29,6 +29,7 @@ jobs:
             black) poetry run black --check . ;;
             mypy) poetry run mypy netstudio ;;
             pytest)
+              poetry run pytest -v tests/unit/test_list_files.py tests/unit/test_list_files_e2e.py
               poetry run pytest -v tests/unit/test_read_file.py tests/unit/test_main.py
               poetry run pytest -v tests/unit/test_shell.py tests/unit/test_shell_command_parsing.py
               poetry run pytest -v
@@ -47,5 +48,5 @@ jobs:
         run: pip install poetry
       - name: Install project dependencies
         run: poetry install --with dev --no-root
-      - name: Validate ShellTool and ReadFileTool integration on Windows
-        run: poetry run pytest -v tests/unit/test_shell.py tests/unit/test_shell_command_parsing.py tests/unit/test_read_file.py tests/unit/test_main.py
+      - name: Validate workspace tools and CLI integration on Windows
+        run: poetry run pytest -v tests/unit/test_shell.py tests/unit/test_shell_command_parsing.py tests/unit/test_read_file.py tests/unit/test_list_files.py tests/unit/test_list_files_e2e.py tests/unit/test_main.py
