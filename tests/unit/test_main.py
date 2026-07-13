@@ -55,8 +55,7 @@ class RuntimeProvider(LLMProvider):
 
 
 @pytest.mark.asyncio
-async def test_execute_task_direct_cli_path_crosses_agent_runtime_and_closes_provider(
-) -> None:
+async def test_execute_task_direct_cli_path_crosses_agent_runtime_and_closes_provider() -> None:
     provider = RuntimeProvider('{"action":"complete","content":"CLI OK"}')
     agent = Agent(name="cli-agent", provider=provider)
 
@@ -93,9 +92,7 @@ async def test_interactive_executes_and_remembers_turn(monkeypatch, capsys) -> N
 
 
 @pytest.mark.asyncio
-async def test_interactive_real_agent_uses_runtime_and_closes_provider(
-    monkeypatch, capsys
-) -> None:
+async def test_interactive_real_agent_uses_runtime_and_closes_provider(monkeypatch, capsys) -> None:
     provider = RuntimeProvider('{"action":"complete","content":"interactive OK"}')
     agent = Agent(name="cli-agent", provider=provider)
     inputs = iter(["first task", "sair"])
