@@ -93,7 +93,10 @@ def build_parser() -> ArgumentParser:
     parser.add_argument(
         "--allow-write",
         action="store_true",
-        help="Allow the agent to create or overwrite UTF-8 files inside the authorized workspace when the tool explicitly requests that intent",
+        help=(
+            "Allow the agent to create or overwrite UTF-8 files inside the authorized "
+            "workspace when the tool explicitly requests that intent"
+        ),
     )
     parser.add_argument(
         "--allow-local-execution",

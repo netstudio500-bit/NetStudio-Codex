@@ -26,7 +26,10 @@ class ListFilesTool(Tool):
     def metadata(self) -> ToolMetadata:
         return ToolMetadata(
             name="list_files",
-            description="List files, directories, and symlinks inside the authorized workspace; directory symlinks are never traversed",
+            description=(
+                "List files, directories, and symlinks inside the authorized workspace; "
+                "directory symlinks are never traversed"
+            ),
             capabilities=frozenset({ToolCapability.READ}),
             argument_schema={
                 "type": "object",

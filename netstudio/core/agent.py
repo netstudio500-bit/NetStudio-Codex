@@ -14,7 +14,6 @@ from netstudio.runtime import (
     LLMDecisionSource,
     PolicySnapshot,
     RuntimeFailure,
-    RuntimeState,
     ScopeRef,
 )
 from netstudio.tools import (

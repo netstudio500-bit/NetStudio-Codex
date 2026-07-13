@@ -37,7 +37,10 @@ class SearchTextTool(Tool):
     def metadata(self) -> ToolMetadata:
         return ToolMetadata(
             name="search_text",
-            description="Search literal text in bounded UTF-8 regular files inside the authorized workspace; line and column are 1-based and symlinks are not followed",
+            description=(
+                "Search literal text in bounded UTF-8 regular files inside the authorized "
+                "workspace; line and column are 1-based and symlinks are not followed"
+            ),
             capabilities=frozenset({ToolCapability.READ}),
             argument_schema={
                 "type": "object",
