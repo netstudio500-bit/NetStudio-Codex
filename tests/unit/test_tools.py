@@ -31,7 +31,9 @@ class CapabilityTool(Tool):
 
 
 def context(*capabilities: ToolCapability) -> ExecutionContext:
-    return ExecutionContext(ScopeRef("scope"), PolicySnapshot(frozenset(capabilities)))
+    return ExecutionContext(
+        ScopeRef("scope"), PolicySnapshot(frozenset(capabilities))
+    )
 
 
 def test_registry_registers_and_finds_tool() -> None:
