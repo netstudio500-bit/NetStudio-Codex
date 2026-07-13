@@ -165,9 +165,7 @@ def test_cli_policy_is_empty_without_flag() -> None:
 def test_cli_policy_grants_only_local_execution_with_flag() -> None:
     args = build_parser().parse_args(["do work", "--allow-local-execution"])
 
-    assert build_policy(args).allowed_capabilities == frozenset(
-        {ToolCapability.LOCAL_EXECUTION}
-    )
+    assert build_policy(args).allowed_capabilities == frozenset({ToolCapability.LOCAL_EXECUTION})
 
 
 def test_help_documents_workspace_scoped_local_execution(capsys) -> None:
@@ -225,9 +223,7 @@ async def test_cli_with_flag_runs_shell_in_workspace_and_completes(
     await main(args)
 
     output = capsys.readouterr().out
-    assert captured["policy"] == PolicySnapshot(
-        frozenset({ToolCapability.LOCAL_EXECUTION})
-    )
+    assert captured["policy"] == PolicySnapshot(frozenset({ToolCapability.LOCAL_EXECUTION}))
     assert captured["workspace_root"] == tmp_path.resolve()
     assert marker.read_text() == str(tmp_path.resolve())
     assert "Local process execution authorized for this workspace." in output
@@ -258,9 +254,7 @@ async def test_interactive_cli_preserves_explicit_policy_for_session(
     await main(args)
 
     output = capsys.readouterr().out
-    assert captured["policy"].allowed_capabilities == frozenset(
-        {ToolCapability.LOCAL_EXECUTION}
-    )
+    assert captured["policy"].allowed_capabilities == frozenset({ToolCapability.LOCAL_EXECUTION})
     assert len(provider.requests) == 2
     assert '"name": "shell"' in provider.requests[0].prompt
     assert "INTERACTIVE_SHELL_OK" in provider.requests[1].prompt
