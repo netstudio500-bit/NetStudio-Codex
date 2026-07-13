@@ -81,9 +81,7 @@ class TestAgent:
 
     @pytest.mark.asyncio
     async def test_agent_fails_when_model_requests_missing_tool(self) -> None:
-        provider = FakeProvider(
-            ['{"action":"tool","tool_name":"missing","arguments":{}}']
-        )
+        provider = FakeProvider(['{"action":"tool","tool_name":"missing","arguments":{}}'])
         agent = Agent(name="test-agent", provider=provider)
 
         with pytest.raises(AgentRuntimeError) as error:
