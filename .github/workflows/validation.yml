@@ -16,10 +16,25 @@ jobs:
       - run: pip install poetry
       - run: poetry install --with dev --no-root
       - run: |
-          poetry run ruff check . --fix
+          poetry run ruff check . --fix || true
+          python - <<'PY'
+          from pathlib import Path
+          replacements = {
+              'netstudio/main.py': [('help="Allow the agent to create or overwrite UTF-8 files inside the authorized workspace when the tool explicitly requests that intent",', 'help=("Allow the agent to create or overwrite UTF-8 files inside the authorized "\n            "workspace when the tool explicitly requests that intent"),')],
+              'netstudio/tools/list_files.py': [('description="List files, directories, and symlinks inside the authorized workspace; directory symlinks are never traversed",', 'description=("List files, directories, and symlinks inside the authorized workspace; "\n                "directory symlinks are never traversed"),')],
+              'netstudio/tools/search_text.py': [('description="Search literal text in bounded UTF-8 regular files inside the authorized workspace; line and column are 1-based and symlinks are not followed",', 'description=("Search literal text in bounded UTF-8 regular files inside the authorized "\n                "workspace; line and column are 1-based and symlinks are not followed"),')],
+          }
+          for name, changes in replacements.items():
+              path = Path(name)
+              text = path.read_text()
+              for old, new in changes:
+                  text = text.replace(old, new)
+              path.write_text(text)
+          PY
           poetry run black .
+          poetry run ruff check .
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add netstudio tests
-          git commit -m "style: apply Ruff fixes"
+          git commit -m "style: finish Ruff and Black compliance"
           git push origin HEAD:agent/write-file-checkpoint
