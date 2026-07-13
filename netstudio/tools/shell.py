@@ -66,7 +66,7 @@ class ShellTool(Tool):
         command = arguments["command"]
         timeout_seconds = arguments.get("timeout_seconds", DEFAULT_TIMEOUT_SECONDS)
         try:
-            argv = shlex.split(command, posix=os.name != "nt")
+            argv = self._split_command(command)
         except ValueError as exc:
             return ToolResult(success=False, error=f"Invalid command syntax: {exc}")
         if not argv:
@@ -138,6 +138,17 @@ class ShellTool(Tool):
         if timeout > MAX_TIMEOUT_SECONDS:
             return f"timeout_seconds must not exceed {MAX_TIMEOUT_SECONDS}"
         return None
+
+    def _split_command(self, command: str) -> list[str]:
+        if os.name != "nt":
+            return shlex.split(command, posix=True)
+        tokens = shlex.split(command, posix=False)
+        return [
+            token[1:-1]
+            if len(token) >= 2 and token[0] == token[-1] and token[0] in {'"', "'"}
+            else token
+            for token in tokens
+        ]
 
     async def _read_bounded(
         self, stream: asyncio.StreamReader | None
