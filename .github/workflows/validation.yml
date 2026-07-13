@@ -33,7 +33,7 @@ jobs:
         run: |
           case "${{ matrix.check }}" in
             ruff) poetry run ruff check . ;;
-            black) poetry run black --check --diff tests/unit/test_shell.py 2>&1 | base64 -w0; exit ${PIPESTATUS[0]} ;;
+            black) poetry run black --check --diff tests/unit/test_shell.py 2>&1 | grep -E '^[+-][^+-]' | base64 -w0; exit ${PIPESTATUS[0]} ;;
             mypy) poetry run mypy netstudio ;;
             pytest) poetry run pytest -q --tb=short ;;
           esac
