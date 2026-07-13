@@ -175,9 +175,7 @@ async def test_search_text_skips_invalid_utf8_and_large_files(tmp_path: Path) ->
 
     result = await SearchTextTool(tmp_path, max_file_size_bytes=8).execute({"query": "TARGET"})
 
-    assert matches(result) == [
-        {"path": "valid.txt", "line": 1, "column": 1, "text": "TARGET"}
-    ]
+    assert matches(result) == [{"path": "valid.txt", "line": 1, "column": 1, "text": "TARGET"}]
     assert result.metadata["skipped_invalid_utf8"] == 1
     assert result.metadata["skipped_too_large"] == 1
 
@@ -262,9 +260,7 @@ async def test_search_text_blocks_external_symlink_used_as_root(tmp_path: Path) 
     external.mkdir()
     make_symlink(workspace / "external-root", external, directory=True)
 
-    result = await SearchTextTool(workspace).execute(
-        {"query": "secret", "path": "external-root"}
-    )
+    result = await SearchTextTool(workspace).execute({"query": "secret", "path": "external-root"})
 
     assert_failure(result, "path_outside_workspace")
 
