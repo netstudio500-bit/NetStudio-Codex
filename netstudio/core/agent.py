@@ -14,7 +14,6 @@ from netstudio.runtime import (
     LLMDecisionSource,
     PolicySnapshot,
     RuntimeFailure,
-    RuntimeState,
     ScopeRef,
 )
 from netstudio.tools import (
@@ -23,6 +22,7 @@ from netstudio.tools import (
     SearchTextTool,
     ShellTool,
     ToolRegistry,
+    WriteFileTool,
 )
 
 logger = get_logger(__name__)
@@ -46,7 +46,6 @@ class Agent(BaseModel):
     temperature: float = Field(default=0.7, ge=0.0, le=1.0)
     max_tokens: int = Field(default=2048, gt=0)
     max_iterations: int = Field(default=8, gt=0)
-
     _provider: LLMProvider = PrivateAttr()
     _registry: ToolRegistry = PrivateAttr()
     _policy: PolicySnapshot = PrivateAttr()
@@ -61,7 +60,6 @@ class Agent(BaseModel):
         workspace_root: Optional[Path] = None,
         **data: object,
     ) -> None:
-        """Inicializa o agente com dependências e autorização explicitamente injetáveis."""
         super().__init__(**data)
         self._provider = provider or OllamaProvider(model=self.model)
         self._workspace_root = (workspace_root or Path.cwd()).resolve(strict=True)
@@ -72,10 +70,10 @@ class Agent(BaseModel):
             registry.register(ReadFileTool(self._workspace_root))
             registry.register(ListFilesTool(self._workspace_root))
             registry.register(SearchTextTool(self._workspace_root))
+            registry.register(WriteFileTool(self._workspace_root))
         self._registry = registry
 
     async def execute(self, task: str) -> str:
-        """Executa uma tarefa pelo AgentRuntime e retorna seu resultado público."""
         logger.info(f"Executing task through AgentRuntime: {task}")
         execution_context = self._execution_context()
         decision_source = LLMDecisionSource(
@@ -94,13 +92,9 @@ class Agent(BaseModel):
         ).run(task)
         if result.failure is not None:
             raise AgentRuntimeError(result.failure)
-        if result.state is RuntimeState.CANCELLED:
-            return result.output
         return result.output
 
     async def think(self, context: str) -> str:
-        """Solicita ao LLM análise do contexto fora do fluxo operacional de tarefa."""
-        logger.info("Thinking about provided context")
         response = await self._provider.generate(
             GenerationRequest(
                 prompt=f"Analise o contexto e proponha o próximo passo útil:\n\n{context}",
@@ -112,25 +106,18 @@ class Agent(BaseModel):
         return response.text
 
     async def remember(self, memory: str) -> None:
-        """Armazena memória de sessão em processo."""
-        logger.info("Storing session memory")
         self._memories.append(memory)
 
     async def close(self) -> None:
-        """Libera recursos do provider."""
         await self._provider.close()
 
     def _execution_context(self) -> ExecutionContext:
-        """Resolve o workspace e a policy desta execução."""
         return ExecutionContext(
             scope=ScopeRef(
-                scope_id=self.name,
-                scope_type="agent",
-                workspace_root=self._workspace_root,
+                scope_id=self.name, scope_type="agent", workspace_root=self._workspace_root
             ),
             policy=self._policy,
         )
 
     def _memory_context(self) -> str:
-        """Monta contexto curto com as memórias da sessão."""
         return "\n".join(f"- {memory}" for memory in self._memories[-10:])

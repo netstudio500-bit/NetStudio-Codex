@@ -7,6 +7,7 @@ from typing import Any
 
 from netstudio.runtime.capabilities import ToolCapability
 from netstudio.tools.base import Tool, ToolMetadata, ToolResult
+from netstudio.tools.workspace_paths import is_internal_path
 
 DEFAULT_MAX_FILES = 1000
 DEFAULT_MAX_RESULTS = 200
@@ -23,12 +24,8 @@ class SearchTextTool(Tool):
         max_results: int = DEFAULT_MAX_RESULTS,
         max_file_size_bytes: int = DEFAULT_MAX_SEARCH_FILE_SIZE_BYTES,
     ) -> None:
-        if max_files <= 0:
-            raise ValueError("max_files must be greater than zero")
-        if max_results <= 0:
-            raise ValueError("max_results must be greater than zero")
-        if max_file_size_bytes <= 0:
-            raise ValueError("max_file_size_bytes must be greater than zero")
+        if max_files <= 0 or max_results <= 0 or max_file_size_bytes <= 0:
+            raise ValueError("search limits must be greater than zero")
         self._workspace_root = workspace_root.resolve(strict=True)
         if not self._workspace_root.is_dir():
             raise ValueError("workspace_root must be a directory")
@@ -38,7 +35,6 @@ class SearchTextTool(Tool):
 
     @property
     def metadata(self) -> ToolMetadata:
-        """Declare the search_text contract and READ capability."""
         return ToolMetadata(
             name="search_text",
             description=(
@@ -59,11 +55,9 @@ class SearchTextTool(Tool):
         )
 
     async def execute(self, arguments: dict[str, Any]) -> ToolResult:
-        """Validate, resolve, enumerate, and search bounded workspace text."""
         validation_error = self._validate_arguments(arguments)
         if validation_error is not None:
             return self._failure("invalid_arguments", validation_error)
-
         query = arguments["query"]
         requested = arguments.get("path", ".")
         case_sensitive = arguments.get("case_sensitive", False)
@@ -72,27 +66,27 @@ class SearchTextTool(Tool):
             root = raw_root.resolve(strict=False)
         except (OSError, RuntimeError) as exc:
             return self._failure("search_failed", f"Path resolution failed: {exc}")
-
         if not root.is_relative_to(self._workspace_root):
             return self._failure(
                 "path_outside_workspace", "Path resolves outside the authorized workspace"
+            )
+        if is_internal_path(self._workspace_root, root):
+            return self._failure(
+                "reserved_internal_path", "Reserved NetStudio area is inaccessible"
             )
         if not root.exists():
             return self._failure("path_not_found", "Path does not exist")
         if raw_root.is_symlink():
             return self._failure("search_failed", "Symlink roots are not searched")
-
         try:
             files, files_truncated = self._files_to_search(root)
         except OSError as exc:
             return self._failure("search_failed", f"Unable to enumerate search root: {exc}")
-
         matches: list[dict[str, str | int]] = []
         files_examined = 0
         skipped_invalid_utf8 = 0
         skipped_too_large = 0
         results_truncated = False
-
         for file_path in files:
             try:
                 size = file_path.stat().st_size
@@ -108,7 +102,6 @@ class SearchTextTool(Tool):
                 continue
             except OSError:
                 continue
-
             files_examined += 1
             relative = file_path.relative_to(self._workspace_root).as_posix()
             for line_number, line in enumerate(content.splitlines(), start=1):
@@ -117,18 +110,12 @@ class SearchTextTool(Tool):
                         results_truncated = True
                         break
                     matches.append(
-                        {
-                            "path": relative,
-                            "line": line_number,
-                            "column": column,
-                            "text": line,
-                        }
+                        {"path": relative, "line": line_number, "column": column, "text": line}
                     )
                 if results_truncated:
                     break
             if results_truncated:
                 break
-
         root_relative = root.relative_to(self._workspace_root).as_posix() or "."
         return ToolResult(
             success=True,
@@ -150,18 +137,19 @@ class SearchTextTool(Tool):
             return [root], False
         if not root.is_dir():
             raise OSError("Search root is not a regular file or directory")
-
         frontier: list[tuple[str, Path]] = []
         for child in root.iterdir():
-            heapq.heappush(frontier, (self._relative(child), child))
+            if not is_internal_path(self._workspace_root, child):
+                heapq.heappush(frontier, (self._relative(child), child))
         files: list[Path] = []
         while frontier:
             _, current = heapq.heappop(frontier)
-            if current.is_symlink():
+            if current.is_symlink() or is_internal_path(self._workspace_root, current):
                 continue
             if current.is_dir():
                 for child in current.iterdir():
-                    heapq.heappush(frontier, (self._relative(child), child))
+                    if not is_internal_path(self._workspace_root, child):
+                        heapq.heappush(frontier, (self._relative(child), child))
                 continue
             if current.is_file():
                 files.append(current)
@@ -172,7 +160,6 @@ class SearchTextTool(Tool):
     def _columns(self, line: str, query: str, case_sensitive: bool) -> list[int]:
         if case_sensitive:
             return self._literal_columns(line, query)
-
         folded_line, offsets = self._casefold_with_offsets(line)
         folded_query = query.casefold()
         columns: list[int] = []
