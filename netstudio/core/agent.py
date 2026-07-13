@@ -7,12 +7,30 @@ from pydantic import BaseModel, Field, PrivateAttr
 from netstudio.core.logger import get_logger
 from netstudio.llm.base import GenerationRequest, LLMProvider
 from netstudio.llm.ollama import OllamaProvider
+from netstudio.runtime import (
+    AgentRuntime,
+    ExecutionContext,
+    LLMDecisionSource,
+    PolicySnapshot,
+    RuntimeFailure,
+    RuntimeState,
+    ScopeRef,
+)
+from netstudio.tools import ToolRegistry
 
 logger = get_logger(__name__)
 
 
+class AgentRuntimeError(RuntimeError):
+    """Public agent error preserving the structured runtime failure."""
+
+    def __init__(self, failure: RuntimeFailure) -> None:
+        super().__init__(f"{failure.code}: {failure.message}")
+        self.failure = failure
+
+
 class Agent(BaseModel):
-    """Agente mínimo funcional conectado a um provedor LLM."""
+    """Agente operacional cuja execução padrão atravessa AgentRuntime."""
 
     name: str = Field(..., description="Nome do agente")
     description: str = Field(default="", description="Descrição do agente")
@@ -20,32 +38,49 @@ class Agent(BaseModel):
     model: Optional[str] = Field(default=None, description="Modelo LLM a usar")
     temperature: float = Field(default=0.7, ge=0.0, le=1.0)
     max_tokens: int = Field(default=2048, gt=0)
+    max_iterations: int = Field(default=8, gt=0)
 
     _provider: LLMProvider = PrivateAttr()
+    _registry: ToolRegistry = PrivateAttr()
     _memories: list[str] = PrivateAttr(default_factory=list)
 
-    def __init__(self, provider: Optional[LLMProvider] = None, **data: object) -> None:
-        """Inicializa o agente com provider injetável para execução e testes."""
+    def __init__(
+        self,
+        provider: Optional[LLMProvider] = None,
+        registry: Optional[ToolRegistry] = None,
+        **data: object,
+    ) -> None:
+        """Inicializa o agente com provider e registry injetáveis."""
         super().__init__(**data)
         self._provider = provider or OllamaProvider(model=self.model)
+        self._registry = registry if registry is not None else ToolRegistry()
 
     async def execute(self, task: str) -> str:
-        """Executa uma tarefa usando o LLM configurado."""
-        logger.info(f"Executing task: {task}")
-        context = self._memory_context()
-        prompt = task if not context else f"Memória relevante:\n{context}\n\nTarefa:\n{task}"
-        response = await self._provider.generate(
-            GenerationRequest(
-                prompt=prompt,
-                system_prompt=self.system_prompt or None,
-                temperature=self.temperature,
-                max_tokens=self.max_tokens,
-            )
+        """Executa uma tarefa pelo AgentRuntime e retorna seu resultado público."""
+        logger.info(f"Executing task through AgentRuntime: {task}")
+        execution_context = self._execution_context()
+        decision_source = LLMDecisionSource(
+            provider=self._provider,
+            tools=self._registry.view(execution_context),
+            system_prompt=self.system_prompt,
+            memory_context=self._memory_context(),
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
         )
-        return response.text
+        result = await AgentRuntime(
+            decision_source=decision_source,
+            registry=self._registry,
+            context=execution_context,
+            max_iterations=self.max_iterations,
+        ).run(task)
+        if result.failure is not None:
+            raise AgentRuntimeError(result.failure)
+        if result.state is RuntimeState.CANCELLED:
+            return result.output
+        return result.output
 
     async def think(self, context: str) -> str:
-        """Solicita ao LLM análise do contexto sem simular raciocínio local."""
+        """Solicita ao LLM análise do contexto fora do fluxo operacional de tarefa."""
         logger.info("Thinking about provided context")
         response = await self._provider.generate(
             GenerationRequest(
@@ -65,6 +100,13 @@ class Agent(BaseModel):
     async def close(self) -> None:
         """Libera recursos do provider."""
         await self._provider.close()
+
+    def _execution_context(self) -> ExecutionContext:
+        """Resolve o escopo e a policy segura inicial desta execução."""
+        return ExecutionContext(
+            scope=ScopeRef(scope_id=self.name, scope_type="agent"),
+            policy=PolicySnapshot(),
+        )
 
     def _memory_context(self) -> str:
         """Monta contexto curto com as memórias da sessão."""
