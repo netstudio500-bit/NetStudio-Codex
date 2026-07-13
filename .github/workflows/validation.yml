@@ -26,13 +26,15 @@ jobs:
         run: |
           case "${{ matrix.check }}" in
             ruff) poetry run ruff check . ;;
-            black) poetry run black --check --diff . 2>&1 | tee black.log ; exit ${PIPESTATUS[0]} ;;
+            black) poetry run black . ;;
             mypy) poetry run mypy netstudio ;;
             pytest) poetry run pytest -v ;;
           esac
-      - name: Upload Black diagnostics
-        if: always() && matrix.check == 'black'
+      - name: Upload Black formatted tree
+        if: matrix.check == 'black'
         uses: actions/upload-artifact@v4
         with:
-          name: black-diagnostics
-          path: black.log
+          name: black-formatted-tree
+          path: |
+            netstudio
+            tests
