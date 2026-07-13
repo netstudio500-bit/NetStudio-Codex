@@ -29,7 +29,22 @@ jobs:
             black) poetry run black --check . ;;
             mypy) poetry run mypy netstudio ;;
             pytest)
-              poetry run pytest -v tests/unit/test_shell.py
+              poetry run pytest -v tests/unit/test_main.py tests/unit/test_shell.py tests/unit/test_shell_command_parsing.py
               poetry run pytest -v
               ;;
           esac
+
+  windows-shell:
+    name: windows-shell
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install Poetry
+        run: pip install poetry
+      - name: Install project dependencies
+        run: poetry install --with dev --no-root
+      - name: Validate ShellTool and CLI integration on Windows
+        run: poetry run pytest -v tests/unit/test_shell.py tests/unit/test_shell_command_parsing.py tests/unit/test_main.py
