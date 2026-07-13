@@ -33,7 +33,9 @@ class Agent(BaseModel):
         """Executa uma tarefa usando o LLM configurado."""
         logger.info(f"Executing task: {task}")
         context = self._memory_context()
-        prompt = task if not context else f"Memória relevante:\n{context}\n\nTarefa:\n{task}"
+        prompt = (
+            task if not context else f"Memória relevante:\n{context}\n\nTarefa:\n{task}"
+        )
         response = await self._provider.generate(
             GenerationRequest(
                 prompt=prompt,
