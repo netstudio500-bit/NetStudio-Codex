@@ -9,11 +9,12 @@ from netstudio.runtime.capabilities import ToolCapability
 
 @dataclass(frozen=True)
 class ToolMetadata:
-    """Static identity and capability declaration for a tool."""
+    """Static identity, argument contract and capability declaration for a tool."""
 
     name: str
     description: str
     capabilities: frozenset[ToolCapability]
+    argument_schema: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
