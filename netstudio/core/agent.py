@@ -1,5 +1,6 @@
 """Definição de agente base."""
 
+from pathlib import Path
 from typing import Optional
 
 from pydantic import BaseModel, Field, PrivateAttr
@@ -16,7 +17,7 @@ from netstudio.runtime import (
     RuntimeState,
     ScopeRef,
 )
-from netstudio.tools import ToolRegistry
+from netstudio.tools import ShellTool, ToolRegistry
 
 logger = get_logger(__name__)
 
@@ -42,18 +43,27 @@ class Agent(BaseModel):
 
     _provider: LLMProvider = PrivateAttr()
     _registry: ToolRegistry = PrivateAttr()
+    _policy: PolicySnapshot = PrivateAttr()
+    _workspace_root: Path = PrivateAttr()
     _memories: list[str] = PrivateAttr(default_factory=list)
 
     def __init__(
         self,
         provider: Optional[LLMProvider] = None,
         registry: Optional[ToolRegistry] = None,
+        policy: Optional[PolicySnapshot] = None,
+        workspace_root: Optional[Path] = None,
         **data: object,
     ) -> None:
-        """Inicializa o agente com provider e registry injetáveis."""
+        """Inicializa o agente com dependências e autorização explicitamente injetáveis."""
         super().__init__(**data)
         self._provider = provider or OllamaProvider(model=self.model)
-        self._registry = registry if registry is not None else ToolRegistry()
+        self._workspace_root = (workspace_root or Path.cwd()).resolve(strict=True)
+        self._policy = policy or PolicySnapshot()
+        if registry is None:
+            registry = ToolRegistry()
+            registry.register(ShellTool(self._workspace_root))
+        self._registry = registry
 
     async def execute(self, task: str) -> str:
         """Executa uma tarefa pelo AgentRuntime e retorna seu resultado público."""
@@ -102,10 +112,14 @@ class Agent(BaseModel):
         await self._provider.close()
 
     def _execution_context(self) -> ExecutionContext:
-        """Resolve o escopo e a policy segura inicial desta execução."""
+        """Resolve o workspace e a policy desta execução."""
         return ExecutionContext(
-            scope=ScopeRef(scope_id=self.name, scope_type="agent"),
-            policy=PolicySnapshot(),
+            scope=ScopeRef(
+                scope_id=self.name,
+                scope_type="agent",
+                workspace_root=self._workspace_root,
+            ),
+            policy=self._policy,
         )
 
     def _memory_context(self) -> str:
