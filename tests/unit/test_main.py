@@ -55,7 +55,8 @@ class RuntimeProvider(LLMProvider):
 
 
 @pytest.mark.asyncio
-async def test_execute_task_direct_cli_path_crosses_agent_runtime_and_closes_provider() -> None:
+async def test_execute_task_direct_cli_path_crosses_agent_runtime_and_closes_provider(
+    ) -> None:
     provider = RuntimeProvider('{"action":"complete","content":"CLI OK"}')
     agent = Agent(name="cli-agent", provider=provider)
 
