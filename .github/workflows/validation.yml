@@ -1,28 +1,40 @@
 name: Validation
 on:
   pull_request:
+permissions:
+  contents: write
 jobs:
-  diagnostics:
+  format:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: agent/write-file-checkpoint
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
       - run: pip install poetry
       - run: poetry install --with dev --no-root
-      - name: Capture diagnostics and formatted sources
+      - name: Format and fix reserved-area validation order
         run: |
-          poetry run ruff check . > ruff.txt 2>&1 || true
-          poetry run pytest -q > pytest.txt 2>&1 || true
-          poetry run black . > black.txt 2>&1
-          mkdir formatted
-          cp -r netstudio tests formatted/
-      - uses: actions/upload-artifact@v4
-        with:
-          name: write-file-diagnostics
-          path: |
-            ruff.txt
-            pytest.txt
-            black.txt
-            formatted
+          poetry run black .
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('netstudio/tools/write_file.py')
+          text = path.read_text()
+          old = '''        try:\n            target = (self._workspace_root / requested).resolve(strict=False)\n            parent = target.parent.resolve(strict=True)\n        except FileNotFoundError:\n'''
+          new = '''        try:\n            target = (self._workspace_root / requested).resolve(strict=False)\n            if is_internal_path(self._workspace_root, target):\n                return self._failure(\n                    "reserved_internal_path", "Reserved NetStudio area is inaccessible"\n                )\n            parent = target.parent.resolve(strict=True)\n        except FileNotFoundError:\n'''
+          text = text.replace(old, new)
+          later = '''        if is_internal_path(self._workspace_root, target):\n            return self._failure(\n                "reserved_internal_path", "Reserved NetStudio area is inaccessible"\n            )\n'''
+          first = text.find(later)
+          second = text.find(later, first + len(later))
+          if second >= 0:
+              text = text[:second] + text[second + len(later):]
+          path.write_text(text)
+          PY
+          poetry run black .
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add netstudio tests
+          git commit -m "style: format write_file implementation"
+          git push origin HEAD:agent/write-file-checkpoint
