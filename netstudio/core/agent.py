@@ -17,7 +17,7 @@ from netstudio.runtime import (
     RuntimeState,
     ScopeRef,
 )
-from netstudio.tools import ReadFileTool, ShellTool, ToolRegistry
+from netstudio.tools import ListFilesTool, ReadFileTool, ShellTool, ToolRegistry
 
 logger = get_logger(__name__)
 
@@ -64,6 +64,7 @@ class Agent(BaseModel):
             registry = ToolRegistry()
             registry.register(ShellTool(self._workspace_root))
             registry.register(ReadFileTool(self._workspace_root))
+            registry.register(ListFilesTool(self._workspace_root))
         self._registry = registry
 
     async def execute(self, task: str) -> str:
