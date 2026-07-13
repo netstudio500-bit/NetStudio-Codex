@@ -4,6 +4,7 @@ import pytest
 
 from netstudio.core.agent import Agent, AgentRuntimeError
 from netstudio.llm.base import GenerationRequest, GenerationResponse, LLMProvider
+from netstudio.runtime import DecisionParseError
 
 
 class FakeProvider(LLMProvider):
@@ -78,6 +79,8 @@ class TestAgent:
         assert error.value.failure.code == "runtime_error"
         assert "Invalid decision JSON" in error.value.failure.message
         assert error.value.failure.iteration == 1
+        assert isinstance(error.value.failure.cause, DecisionParseError)
+        assert error.value.__cause__ is error.value.failure.cause
 
     @pytest.mark.asyncio
     async def test_agent_fails_when_model_requests_missing_tool(self) -> None:

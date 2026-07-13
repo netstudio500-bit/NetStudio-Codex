@@ -74,7 +74,10 @@ class Agent(BaseModel):
             max_iterations=self.max_iterations,
         ).run(task)
         if result.failure is not None:
-            raise AgentRuntimeError(result.failure)
+            error = AgentRuntimeError(result.failure)
+            if result.failure.cause is not None:
+                raise error from result.failure.cause
+            raise error
         if result.state is RuntimeState.CANCELLED:
             return result.output
         return result.output

@@ -43,6 +43,7 @@ class RuntimeFailure:
     code: str
     message: str
     iteration: int
+    cause: Exception | None = field(default=None, compare=False, repr=False)
 
 
 @dataclass(frozen=True)
@@ -98,7 +99,12 @@ class AgentRuntime:
                 )
                 terminal = await self._apply_decision(decision, iteration)
             except Exception as exc:
-                return self._fail("runtime_error", str(exc), iteration)
+                return self._fail(
+                    "runtime_error",
+                    self._exception_message(exc),
+                    iteration,
+                    cause=exc,
+                )
             if terminal is not None:
                 return terminal
 
@@ -128,7 +134,15 @@ class AgentRuntime:
             return self._fail("tool_denied_or_missing", str(exc), iteration)
 
         self.transition_to(RuntimeState.RUNNING_TOOL)
-        tool_result = await tool.execute(decision.arguments)
+        try:
+            tool_result = await tool.execute(decision.arguments)
+        except Exception as exc:
+            return self._fail(
+                "tool_execution_error",
+                f"Tool {decision.tool_name} raised {self._exception_message(exc)}",
+                iteration,
+                cause=exc,
+            )
         self.transition_to(RuntimeState.VALIDATING)
         observation = Observation(tool_name=decision.tool_name, result=tool_result)
         self._observations.append(observation)
@@ -141,10 +155,16 @@ class AgentRuntime:
         self.transition_to(RuntimeState.REPLANNING)
         return None
 
-    def _fail(self, code: str, message: str, iteration: int) -> RuntimeResult:
+    def _fail(
+        self,
+        code: str,
+        message: str,
+        iteration: int,
+        cause: Exception | None = None,
+    ) -> RuntimeResult:
         if self.state not in TERMINAL_STATES:
             self.transition_to(RuntimeState.FAILED)
-        return self._result(failure=RuntimeFailure(code, message, iteration))
+        return self._result(failure=RuntimeFailure(code, message, iteration, cause))
 
     def _result(self, output: str = "", failure: RuntimeFailure | None = None) -> RuntimeResult:
         return RuntimeResult(
@@ -153,3 +173,8 @@ class AgentRuntime:
             observations=tuple(self._observations),
             failure=failure,
         )
+
+    @staticmethod
+    def _exception_message(exc: Exception) -> str:
+        detail = str(exc)
+        return f"{type(exc).__name__}: {detail}" if detail else type(exc).__name__
