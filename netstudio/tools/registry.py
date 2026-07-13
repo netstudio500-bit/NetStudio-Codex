@@ -53,9 +53,7 @@ class ToolRegistryView:
         try:
             return self._tools[name]
         except KeyError as exc:
-            raise ToolNotFoundError(
-                f"Tool unavailable in execution policy: {name}"
-            ) from exc
+            raise ToolNotFoundError(f"Tool unavailable in execution policy: {name}") from exc
 
     def names(self) -> tuple[str, ...]:
         """Return permitted tool names."""
