@@ -26,15 +26,7 @@ jobs:
         run: |
           case "${{ matrix.check }}" in
             ruff) poetry run ruff check . ;;
-            black) poetry run black . ;;
+            black) poetry run black --check . ;;
             mypy) poetry run mypy netstudio ;;
             pytest) poetry run pytest -v ;;
           esac
-      - name: Upload Black formatted tree
-        if: matrix.check == 'black'
-        uses: actions/upload-artifact@v4
-        with:
-          name: black-formatted-tree
-          path: |
-            netstudio
-            tests
