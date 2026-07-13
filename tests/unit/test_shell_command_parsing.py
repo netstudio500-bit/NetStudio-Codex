@@ -22,11 +22,7 @@ def command_with_argument(script: str, argument: str) -> str:
 @pytest.mark.asyncio
 async def test_shell_preserves_quoted_argument_containing_spaces(tmp_path: Path) -> None:
     result = await ShellTool(tmp_path).execute(
-        {
-            "command": command_with_argument(
-                "import sys; print(sys.argv[1])", "argument with spaces"
-            )
-        }
+        {"command": command_with_argument("import sys; print(sys.argv[1])", "argument with spaces")}
     )
 
     assert result.success is True
