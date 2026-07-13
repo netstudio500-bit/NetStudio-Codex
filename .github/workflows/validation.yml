@@ -1,40 +1,52 @@
 name: Validation
+
 on:
+  push:
+    branches: [main]
   pull_request:
-permissions:
-  contents: write
+
 jobs:
-  format:
+  validate:
+    name: ${{ matrix.check }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [ruff, black, mypy, pytest]
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: agent/write-file-checkpoint
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install poetry
-      - run: poetry install --with dev --no-root
-      - name: Format and fix reserved-area validation order
+      - name: Install Poetry
+        run: pip install poetry
+      - name: Install project dependencies
+        run: poetry install --with dev --no-root
+      - name: Run validation
         run: |
-          poetry run black .
-          python - <<'PY'
-          from pathlib import Path
-          path = Path('netstudio/tools/write_file.py')
-          text = path.read_text()
-          old = '''        try:\n            target = (self._workspace_root / requested).resolve(strict=False)\n            parent = target.parent.resolve(strict=True)\n        except FileNotFoundError:\n'''
-          new = '''        try:\n            target = (self._workspace_root / requested).resolve(strict=False)\n            if is_internal_path(self._workspace_root, target):\n                return self._failure(\n                    "reserved_internal_path", "Reserved NetStudio area is inaccessible"\n                )\n            parent = target.parent.resolve(strict=True)\n        except FileNotFoundError:\n'''
-          text = text.replace(old, new)
-          later = '''        if is_internal_path(self._workspace_root, target):\n            return self._failure(\n                "reserved_internal_path", "Reserved NetStudio area is inaccessible"\n            )\n'''
-          first = text.find(later)
-          second = text.find(later, first + len(later))
-          if second >= 0:
-              text = text[:second] + text[second + len(later):]
-          path.write_text(text)
-          PY
-          poetry run black .
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add netstudio tests
-          git commit -m "style: format write_file implementation"
-          git push origin HEAD:agent/write-file-checkpoint
+          case "${{ matrix.check }}" in
+            ruff) poetry run ruff check . ;;
+            black) poetry run black --check . ;;
+            mypy) poetry run mypy netstudio ;;
+            pytest)
+              poetry run pytest -v tests/unit/test_write_file.py tests/unit/test_write_file_e2e.py
+              poetry run pytest -v tests/unit/test_read_file.py tests/unit/test_list_files.py tests/unit/test_search_text.py
+              poetry run pytest -v tests/unit/test_main.py tests/unit/test_list_files_e2e.py tests/unit/test_search_text_e2e.py
+              poetry run pytest -v
+              ;;
+          esac
+
+  windows-shell:
+    name: windows-shell
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install Poetry
+        run: pip install poetry
+      - name: Install project dependencies
+        run: poetry install --with dev --no-root
+      - name: Validate workspace tools and CLI integration on Windows
+        run: poetry run pytest -v tests/unit/test_shell.py tests/unit/test_shell_command_parsing.py tests/unit/test_read_file.py tests/unit/test_list_files.py tests/unit/test_search_text.py tests/unit/test_write_file.py tests/unit/test_write_file_e2e.py tests/unit/test_main.py
