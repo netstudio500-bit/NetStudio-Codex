@@ -4,6 +4,8 @@ from argparse import Namespace
 
 import pytest
 
+from netstudio.core.agent import Agent, AgentRuntimeError
+from netstudio.llm.base import GenerationRequest, GenerationResponse, LLMProvider
 from netstudio.main import build_parser, execute_task, interactive
 
 
@@ -26,29 +28,53 @@ class FakeAgent:
         self.closed = True
 
 
+class RuntimeProvider(LLMProvider):
+    """Deterministic provider proving CLI task execution reaches runtime decisions."""
+
+    def __init__(self, response: str) -> None:
+        self.response = response
+        self.requests: list[GenerationRequest] = []
+        self.closed = False
+
+    @property
+    def name(self) -> str:
+        return "runtime-provider"
+
+    async def health(self) -> bool:
+        return True
+
+    async def list_models(self) -> list[str]:
+        return ["runtime-model"]
+
+    async def generate(self, request: GenerationRequest) -> GenerationResponse:
+        self.requests.append(request)
+        return GenerationResponse(text=self.response, model="runtime-model")
+
+    async def close(self) -> None:
+        self.closed = True
+
+
 @pytest.mark.asyncio
-async def test_execute_task_runs_agent_and_closes_it() -> None:
-    agent = FakeAgent()
+async def test_execute_task_direct_cli_path_crosses_agent_runtime_and_closes_provider() -> None:
+    provider = RuntimeProvider('{"action":"complete","content":"CLI OK"}')
+    agent = Agent(name="cli-agent", provider=provider)
 
-    result = await execute_task(agent, "inspect repository")  # type: ignore[arg-type]
+    result = await execute_task(agent, "inspect repository")
 
-    assert result == "result: inspect repository"
-    assert agent.tasks == ["inspect repository"]
-    assert agent.closed is True
+    assert result == "CLI OK"
+    assert 'task="inspect repository"' in provider.requests[0].prompt
+    assert provider.closed is True
 
 
 @pytest.mark.asyncio
-async def test_execute_task_closes_agent_after_failure() -> None:
-    class FailingAgent(FakeAgent):
-        async def execute(self, task: str) -> str:
-            raise RuntimeError("provider failed")
+async def test_execute_task_closes_provider_after_runtime_failure() -> None:
+    provider = RuntimeProvider("invalid provider response")
+    agent = Agent(name="cli-agent", provider=provider)
 
-    agent = FailingAgent()
+    with pytest.raises(AgentRuntimeError, match="runtime_error"):
+        await execute_task(agent, "fail")
 
-    with pytest.raises(RuntimeError, match="provider failed"):
-        await execute_task(agent, "fail")  # type: ignore[arg-type]
-
-    assert agent.closed is True
+    assert provider.closed is True
 
 
 @pytest.mark.asyncio
@@ -63,6 +89,22 @@ async def test_interactive_executes_and_remembers_turn(monkeypatch, capsys) -> N
     assert agent.memories == ["Tarefa: first task\nResposta: result: first task"]
     assert agent.closed is True
     assert "result: first task" in capsys.readouterr().out
+
+
+@pytest.mark.asyncio
+async def test_interactive_real_agent_uses_runtime_and_closes_provider(
+    monkeypatch, capsys
+) -> None:
+    provider = RuntimeProvider('{"action":"complete","content":"interactive OK"}')
+    agent = Agent(name="cli-agent", provider=provider)
+    inputs = iter(["first task", "sair"])
+    monkeypatch.setattr("builtins.input", lambda _: next(inputs))
+
+    await interactive(agent)
+
+    assert 'task="first task"' in provider.requests[0].prompt
+    assert provider.closed is True
+    assert "interactive OK" in capsys.readouterr().out
 
 
 def test_parser_accepts_task_model_and_interactive_mode() -> None:
