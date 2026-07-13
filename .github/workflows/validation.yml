@@ -28,5 +28,8 @@ jobs:
             ruff) poetry run ruff check . ;;
             black) poetry run black --check . ;;
             mypy) poetry run mypy netstudio ;;
-            pytest) poetry run pytest -v ;;
+            pytest)
+              poetry run pytest -v tests/unit/test_shell.py
+              poetry run pytest -v
+              ;;
           esac
