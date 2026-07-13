@@ -17,6 +17,8 @@ logger = get_logger(__name__)
 def build_policy(args: Namespace) -> PolicySnapshot:
     """Constrói a policy imutável exclusivamente a partir de concessões da CLI."""
     capabilities: set[ToolCapability] = set()
+    if args.allow_read:
+        capabilities.add(ToolCapability.READ)
     if args.allow_local_execution:
         capabilities.add(ToolCapability.LOCAL_EXECUTION)
     return PolicySnapshot(frozenset(capabilities))
@@ -71,6 +73,8 @@ async def main(args: Namespace) -> None:
         workspace_root=workspace_root,
     )
 
+    if args.allow_read:
+        print("Workspace file reading authorized.")
     if args.allow_local_execution:
         print("Local process execution authorized for this workspace.")
 
@@ -89,6 +93,11 @@ def build_parser() -> ArgumentParser:
     parser.add_argument("-i", "--interactive", action="store_true", help="Start interactive mode")
     parser.add_argument("--model", help="Override the configured Ollama model")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
+    parser.add_argument(
+        "--allow-read",
+        action="store_true",
+        help="Allow the agent to read UTF-8 text files inside the authorized workspace",
+    )
     parser.add_argument(
         "--allow-local-execution",
         action="store_true",
