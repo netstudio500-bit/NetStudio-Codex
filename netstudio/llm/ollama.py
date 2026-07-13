@@ -14,7 +14,9 @@ logger = get_logger(__name__)
 class OllamaProvider(LLMProvider):
     """Ollama language model provider implementation."""
 
-    def __init__(self, base_url: Optional[str] = None, model: Optional[str] = None) -> None:
+    def __init__(
+        self, base_url: Optional[str] = None, model: Optional[str] = None
+    ) -> None:
         """Initialize Ollama provider."""
         config = get_config()
         self._base_url = base_url or config.ollama_base_url
