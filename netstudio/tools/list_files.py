@@ -121,7 +121,7 @@ class ListFilesTool(Tool):
         if not path.strip():
             return "path must not be empty"
         recursive = arguments.get("recursive", False)
-        if type(recursive) is not bool:
+        if not isinstance(recursive, bool):
             return "recursive must be a boolean"
         return None
 
