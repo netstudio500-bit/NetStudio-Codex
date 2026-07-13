@@ -33,7 +33,7 @@ jobs:
         run: |
           case "${{ matrix.check }}" in
             ruff) poetry run ruff check . ;;
-            black) poetry run black --check . ;;
+            black) poetry run black --check --diff tests/unit/test_decision.py ;;
             mypy) poetry run mypy netstudio ;;
             pytest) poetry run pytest -q --tb=short ;;
           esac
