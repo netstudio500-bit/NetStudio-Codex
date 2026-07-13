@@ -8,7 +8,13 @@ import pytest
 
 from netstudio.runtime import ExecutionContext, PolicySnapshot, ScopeRef
 from netstudio.runtime.capabilities import ToolCapability
-from netstudio.tools import ListFilesTool, ReadFileTool, SearchTextTool, ShellTool, ToolRegistry
+from netstudio.tools import (
+    ListFilesTool,
+    ReadFileTool,
+    SearchTextTool,
+    ShellTool,
+    ToolRegistry,
+)
 from netstudio.tools.search_text import (
     DEFAULT_MAX_FILES,
     DEFAULT_MAX_RESULTS,
@@ -76,7 +82,9 @@ async def test_search_text_rejects_invalid_arguments(
 
 
 @pytest.mark.asyncio
-async def test_search_text_searches_individual_file_with_one_based_positions(tmp_path: Path) -> None:
+async def test_search_text_searches_individual_file_with_one_based_positions(
+    tmp_path: Path,
+) -> None:
     target = tmp_path / "target.txt"
     target.write_text("first\nxx token token\n", encoding="utf-8")
 
@@ -93,7 +101,9 @@ async def test_search_text_searches_individual_file_with_one_based_positions(tmp
 
 
 @pytest.mark.asyncio
-async def test_search_text_recurses_in_deterministic_relative_path_order(tmp_path: Path) -> None:
+async def test_search_text_recurses_in_deterministic_relative_path_order(
+    tmp_path: Path,
+) -> None:
     (tmp_path / "z.txt").write_text("TARGET", encoding="utf-8")
     source = tmp_path / "src"
     source.mkdir()
