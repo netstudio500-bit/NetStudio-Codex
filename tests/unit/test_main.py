@@ -332,9 +332,7 @@ async def test_interactive_cli_preserves_explicit_policy_for_session(
     await main(args)
 
     output = capsys.readouterr().out
-    assert captured["policy"].allowed_capabilities == frozenset(
-        {ToolCapability.LOCAL_EXECUTION}
-    )
+    assert captured["policy"].allowed_capabilities == frozenset({ToolCapability.LOCAL_EXECUTION})
     assert len(provider.requests) == 2
     assert '"name": "shell"' in provider.requests[0].prompt
     assert "INTERACTIVE_SHELL_OK" in provider.requests[1].prompt
