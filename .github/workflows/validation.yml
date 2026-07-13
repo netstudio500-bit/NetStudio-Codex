@@ -14,9 +14,14 @@ jobs:
       matrix:
         check: [ruff, black, mypy, pytest]
     steps:
-      - uses: actions/checkout@v4
-        with:
-          show-progress: false
+      - name: Quiet checkout
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git init -q
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git fetch -q --depth=1 origin "${GITHUB_SHA}"
+          git checkout -q FETCH_HEAD
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
