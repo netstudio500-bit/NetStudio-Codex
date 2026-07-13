@@ -8,8 +8,23 @@ from pydantic import BaseModel, Field, PrivateAttr
 from netstudio.core.logger import get_logger
 from netstudio.llm.base import GenerationRequest, LLMProvider
 from netstudio.llm.ollama import OllamaProvider
-from netstudio.runtime import AgentRuntime, ExecutionContext, LLMDecisionSource, PolicySnapshot, RuntimeFailure, RuntimeState, ScopeRef
-from netstudio.tools import ListFilesTool, ReadFileTool, SearchTextTool, ShellTool, ToolRegistry, WriteFileTool
+from netstudio.runtime import (
+    AgentRuntime,
+    ExecutionContext,
+    LLMDecisionSource,
+    PolicySnapshot,
+    RuntimeFailure,
+    RuntimeState,
+    ScopeRef,
+)
+from netstudio.tools import (
+    ListFilesTool,
+    ReadFileTool,
+    SearchTextTool,
+    ShellTool,
+    ToolRegistry,
+    WriteFileTool,
+)
 
 logger = get_logger(__name__)
 
@@ -38,7 +53,14 @@ class Agent(BaseModel):
     _workspace_root: Path = PrivateAttr()
     _memories: list[str] = PrivateAttr(default_factory=list)
 
-    def __init__(self, provider: Optional[LLMProvider] = None, registry: Optional[ToolRegistry] = None, policy: Optional[PolicySnapshot] = None, workspace_root: Optional[Path] = None, **data: object) -> None:
+    def __init__(
+        self,
+        provider: Optional[LLMProvider] = None,
+        registry: Optional[ToolRegistry] = None,
+        policy: Optional[PolicySnapshot] = None,
+        workspace_root: Optional[Path] = None,
+        **data: object,
+    ) -> None:
         super().__init__(**data)
         self._provider = provider or OllamaProvider(model=self.model)
         self._workspace_root = (workspace_root or Path.cwd()).resolve(strict=True)
@@ -55,14 +77,33 @@ class Agent(BaseModel):
     async def execute(self, task: str) -> str:
         logger.info(f"Executing task through AgentRuntime: {task}")
         execution_context = self._execution_context()
-        decision_source = LLMDecisionSource(provider=self._provider, tools=self._registry.view(execution_context), system_prompt=self.system_prompt, memory_context=self._memory_context(), temperature=self.temperature, max_tokens=self.max_tokens)
-        result = await AgentRuntime(decision_source=decision_source, registry=self._registry, context=execution_context, max_iterations=self.max_iterations).run(task)
+        decision_source = LLMDecisionSource(
+            provider=self._provider,
+            tools=self._registry.view(execution_context),
+            system_prompt=self.system_prompt,
+            memory_context=self._memory_context(),
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
+        )
+        result = await AgentRuntime(
+            decision_source=decision_source,
+            registry=self._registry,
+            context=execution_context,
+            max_iterations=self.max_iterations,
+        ).run(task)
         if result.failure is not None:
             raise AgentRuntimeError(result.failure)
         return result.output
 
     async def think(self, context: str) -> str:
-        response = await self._provider.generate(GenerationRequest(prompt=f"Analise o contexto e proponha o próximo passo útil:\n\n{context}", system_prompt=self.system_prompt or None, temperature=self.temperature, max_tokens=self.max_tokens))
+        response = await self._provider.generate(
+            GenerationRequest(
+                prompt=f"Analise o contexto e proponha o próximo passo útil:\n\n{context}",
+                system_prompt=self.system_prompt or None,
+                temperature=self.temperature,
+                max_tokens=self.max_tokens,
+            )
+        )
         return response.text
 
     async def remember(self, memory: str) -> None:
@@ -72,7 +113,12 @@ class Agent(BaseModel):
         await self._provider.close()
 
     def _execution_context(self) -> ExecutionContext:
-        return ExecutionContext(scope=ScopeRef(scope_id=self.name, scope_type="agent", workspace_root=self._workspace_root), policy=self._policy)
+        return ExecutionContext(
+            scope=ScopeRef(
+                scope_id=self.name, scope_type="agent", workspace_root=self._workspace_root
+            ),
+            policy=self._policy,
+        )
 
     def _memory_context(self) -> str:
         return "\n".join(f"- {memory}" for memory in self._memories[-10:])

@@ -45,6 +45,7 @@ def install(monkeypatch, provider: LLMProvider, captured: dict[str, Any]) -> Non
     def factory(**kwargs: Any) -> Agent:
         captured.update(kwargs)
         return Agent(provider=provider, **kwargs)
+
     monkeypatch.setattr("netstudio.main.Agent", factory)
 
 
@@ -54,19 +55,25 @@ async def test_cli_discover_read_write_read_complete(tmp_path: Path, monkeypatch
     source.mkdir()
     target = source / "target.txt"
     target.write_text("OLD_VALUE", encoding="utf-8")
-    provider = WriteFlowProvider([
-        decision("search_text", {"query": "OLD_VALUE"}),
-        decision("read_file", {"path": "src/target.txt"}),
-        decision("write_file", {"path": "src/target.txt", "content": "NEW_VALUE", "overwrite": True}),
-        decision("read_file", {"path": "src/target.txt"}),
-        json.dumps({"action": "complete", "content": "WRITE FLOW OK"}),
-    ])
+    provider = WriteFlowProvider(
+        [
+            decision("search_text", {"query": "OLD_VALUE"}),
+            decision("read_file", {"path": "src/target.txt"}),
+            decision(
+                "write_file", {"path": "src/target.txt", "content": "NEW_VALUE", "overwrite": True}
+            ),
+            decision("read_file", {"path": "src/target.txt"}),
+            json.dumps({"action": "complete", "content": "WRITE FLOW OK"}),
+        ]
+    )
     captured: dict[str, Any] = {}
     install(monkeypatch, provider, captured)
     monkeypatch.chdir(tmp_path)
     await main(build_parser().parse_args(["modify target", "--allow-read", "--allow-write"]))
     assert target.read_text(encoding="utf-8") == "NEW_VALUE"
-    assert captured["policy"] == PolicySnapshot(frozenset({ToolCapability.READ, ToolCapability.WRITE}))
+    assert captured["policy"] == PolicySnapshot(
+        frozenset({ToolCapability.READ, ToolCapability.WRITE})
+    )
     assert "src/target.txt" in provider.requests[1].prompt
     assert "OLD_VALUE" in provider.requests[2].prompt
     assert '"operation": "overwritten"' in provider.requests[3].prompt
@@ -77,14 +84,18 @@ async def test_cli_discover_read_write_read_complete(tmp_path: Path, monkeypatch
 
 
 @pytest.mark.asyncio
-async def test_cli_read_without_write_blocks_mutation_and_checkpoint(tmp_path: Path, monkeypatch) -> None:
+async def test_cli_read_without_write_blocks_mutation_and_checkpoint(
+    tmp_path: Path, monkeypatch
+) -> None:
     target = tmp_path / "target.txt"
     original = b"ORIGINAL_BYTES"
     target.write_bytes(original)
-    provider = WriteFlowProvider([
-        decision("read_file", {"path": "target.txt"}),
-        decision("write_file", {"path": "target.txt", "content": "MUTATED", "overwrite": True}),
-    ])
+    provider = WriteFlowProvider(
+        [
+            decision("read_file", {"path": "target.txt"}),
+            decision("write_file", {"path": "target.txt", "content": "MUTATED", "overwrite": True}),
+        ]
+    )
     captured: dict[str, Any] = {}
     install(monkeypatch, provider, captured)
     monkeypatch.chdir(tmp_path)

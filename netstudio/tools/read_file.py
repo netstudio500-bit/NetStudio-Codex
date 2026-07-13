@@ -13,7 +13,9 @@ DEFAULT_MAX_FILE_SIZE_BYTES = 1024 * 1024
 class ReadFileTool(Tool):
     """Read one bounded UTF-8 text file inside the authorized workspace."""
 
-    def __init__(self, workspace_root: Path, max_file_size_bytes: int = DEFAULT_MAX_FILE_SIZE_BYTES) -> None:
+    def __init__(
+        self, workspace_root: Path, max_file_size_bytes: int = DEFAULT_MAX_FILE_SIZE_BYTES
+    ) -> None:
         if max_file_size_bytes <= 0:
             raise ValueError("max_file_size_bytes must be greater than zero")
         self._workspace_root = workspace_root.resolve(strict=True)
@@ -27,7 +29,12 @@ class ReadFileTool(Tool):
             name="read_file",
             description="Read one UTF-8 text file inside the authorized workspace",
             capabilities=frozenset({ToolCapability.READ}),
-            argument_schema={"type": "object", "properties": {"path": {"type": "string", "minLength": 1}}, "required": ["path"], "additionalProperties": False},
+            argument_schema={
+                "type": "object",
+                "properties": {"path": {"type": "string", "minLength": 1}},
+                "required": ["path"],
+                "additionalProperties": False,
+            },
         )
 
     async def execute(self, arguments: dict[str, Any]) -> ToolResult:
@@ -40,9 +47,13 @@ class ReadFileTool(Tool):
         except (OSError, RuntimeError) as exc:
             return self._failure("read_failed", f"Path resolution failed: {exc}")
         if not resolved_path.is_relative_to(self._workspace_root):
-            return self._failure("path_outside_workspace", "Path resolves outside the authorized workspace")
+            return self._failure(
+                "path_outside_workspace", "Path resolves outside the authorized workspace"
+            )
         if is_internal_path(self._workspace_root, resolved_path):
-            return self._failure("reserved_internal_path", "Reserved NetStudio area is inaccessible")
+            return self._failure(
+                "reserved_internal_path", "Reserved NetStudio area is inaccessible"
+            )
         if not resolved_path.exists():
             return self._failure("file_not_found", "File does not exist")
         if not resolved_path.is_file():
@@ -52,7 +63,9 @@ class ReadFileTool(Tool):
         except OSError as exc:
             return self._failure("read_failed", f"Unable to inspect file: {exc}")
         if size > self._max_file_size_bytes:
-            return self._failure("file_too_large", f"File exceeds maximum size of {self._max_file_size_bytes} bytes")
+            return self._failure(
+                "file_too_large", f"File exceeds maximum size of {self._max_file_size_bytes} bytes"
+            )
         try:
             content = resolved_path.read_text(encoding="utf-8")
         except UnicodeDecodeError:
@@ -60,7 +73,11 @@ class ReadFileTool(Tool):
         except OSError as exc:
             return self._failure("read_failed", f"Unable to read file: {exc}")
         relative_path = resolved_path.relative_to(self._workspace_root)
-        return ToolResult(success=True, output=content, metadata={"path": relative_path.as_posix(), "size": size, "encoding": "utf-8"})
+        return ToolResult(
+            success=True,
+            output=content,
+            metadata={"path": relative_path.as_posix(), "size": size, "encoding": "utf-8"},
+        )
 
     def _validate_arguments(self, arguments: dict[str, Any]) -> str | None:
         unexpected = set(arguments) - {"path"}

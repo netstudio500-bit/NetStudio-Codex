@@ -70,6 +70,10 @@ class WriteFileTool(Tool):
 
         try:
             target = (self._workspace_root / requested).resolve(strict=False)
+            if is_internal_path(self._workspace_root, target):
+                return self._failure(
+                    "reserved_internal_path", "Reserved NetStudio area is inaccessible"
+                )
             parent = target.parent.resolve(strict=True)
         except FileNotFoundError:
             return self._failure("parent_not_found", "Parent directory does not exist")
@@ -81,7 +85,9 @@ class WriteFileTool(Tool):
         ):
             return self._failure("path_outside_workspace", "Path resolves outside the workspace")
         if is_internal_path(self._workspace_root, target):
-            return self._failure("reserved_internal_path", "Reserved NetStudio area is inaccessible")
+            return self._failure(
+                "reserved_internal_path", "Reserved NetStudio area is inaccessible"
+            )
         if target.exists() and target.is_dir():
             return self._failure("not_a_file", "Path is a directory")
         if target.is_symlink():
@@ -144,7 +150,9 @@ class WriteFileTool(Tool):
             "diff": diff,
             "diff_truncated": diff_truncated,
         }
-        return ToolResult(success=True, output=json.dumps(evidence, ensure_ascii=False), metadata=evidence)
+        return ToolResult(
+            success=True, output=json.dumps(evidence, ensure_ascii=False), metadata=evidence
+        )
 
     def _create_checkpoint(self, target: Path, content: bytes) -> str:
         checkpoint_id = uuid.uuid4().hex

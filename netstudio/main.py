@@ -60,7 +60,12 @@ async def main(args: Namespace) -> None:
         logger.debug("Debug mode enabled")
     policy = build_policy(args)
     workspace_root = Path.cwd().resolve(strict=True)
-    agent = Agent(name="netstudio", model=args.model or config.ollama_model, policy=policy, workspace_root=workspace_root)
+    agent = Agent(
+        name="netstudio",
+        model=args.model or config.ollama_model,
+        policy=policy,
+        workspace_root=workspace_root,
+    )
     if args.allow_read:
         print("Workspace file reading authorized.")
     if args.allow_write:
@@ -80,9 +85,21 @@ def build_parser() -> ArgumentParser:
     parser.add_argument("-i", "--interactive", action="store_true", help="Start interactive mode")
     parser.add_argument("--model", help="Override the configured Ollama model")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
-    parser.add_argument("--allow-read", action="store_true", help="Allow the agent to read UTF-8 text files inside the authorized workspace")
-    parser.add_argument("--allow-write", action="store_true", help="Allow the agent to create or overwrite UTF-8 files inside the authorized workspace when the tool explicitly requests that intent")
-    parser.add_argument("--allow-local-execution", action="store_true", help="Allow the agent to execute local processes inside the authorized workspace")
+    parser.add_argument(
+        "--allow-read",
+        action="store_true",
+        help="Allow the agent to read UTF-8 text files inside the authorized workspace",
+    )
+    parser.add_argument(
+        "--allow-write",
+        action="store_true",
+        help="Allow the agent to create or overwrite UTF-8 files inside the authorized workspace when the tool explicitly requests that intent",
+    )
+    parser.add_argument(
+        "--allow-local-execution",
+        action="store_true",
+        help="Allow the agent to execute local processes inside the authorized workspace",
+    )
     parser.add_argument("--version", action="version", version="NetStudio-Codex 0.1.0")
     return parser
 

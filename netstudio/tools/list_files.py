@@ -24,7 +24,19 @@ class ListFilesTool(Tool):
 
     @property
     def metadata(self) -> ToolMetadata:
-        return ToolMetadata(name="list_files", description="List files, directories, and symlinks inside the authorized workspace; directory symlinks are never traversed", capabilities=frozenset({ToolCapability.READ}), argument_schema={"type": "object", "properties": {"path": {"type": "string", "minLength": 1, "default": "."}, "recursive": {"type": "boolean", "default": False}}, "additionalProperties": False})
+        return ToolMetadata(
+            name="list_files",
+            description="List files, directories, and symlinks inside the authorized workspace; directory symlinks are never traversed",
+            capabilities=frozenset({ToolCapability.READ}),
+            argument_schema={
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string", "minLength": 1, "default": "."},
+                    "recursive": {"type": "boolean", "default": False},
+                },
+                "additionalProperties": False,
+            },
+        )
 
     async def execute(self, arguments: dict[str, Any]) -> ToolResult:
         validation_error = self._validate_arguments(arguments)
@@ -37,9 +49,13 @@ class ListFilesTool(Tool):
         except (OSError, RuntimeError) as exc:
             return self._failure("list_failed", f"Path resolution failed: {exc}")
         if not root.is_relative_to(self._workspace_root):
-            return self._failure("path_outside_workspace", "Path resolves outside the authorized workspace")
+            return self._failure(
+                "path_outside_workspace", "Path resolves outside the authorized workspace"
+            )
         if is_internal_path(self._workspace_root, root):
-            return self._failure("reserved_internal_path", "Reserved NetStudio area is inaccessible")
+            return self._failure(
+                "reserved_internal_path", "Reserved NetStudio area is inaccessible"
+            )
         if not root.exists():
             return self._failure("path_not_found", "Path does not exist")
         if not root.is_dir():
@@ -51,7 +67,16 @@ class ListFilesTool(Tool):
         truncated = len(entries) > self._max_entries
         selected = entries[: self._max_entries]
         root_relative = root.relative_to(self._workspace_root).as_posix() or "."
-        return ToolResult(success=True, output=json.dumps({"entries": selected}, ensure_ascii=False, sort_keys=True), metadata={"root": root_relative, "recursive": recursive, "count": len(selected), "truncated": truncated})
+        return ToolResult(
+            success=True,
+            output=json.dumps({"entries": selected}, ensure_ascii=False, sort_keys=True),
+            metadata={
+                "root": root_relative,
+                "recursive": recursive,
+                "count": len(selected),
+                "truncated": truncated,
+            },
+        )
 
     def _enumerate(self, root: Path, recursive: bool) -> list[dict[str, str]]:
         entries: list[dict[str, str]] = []

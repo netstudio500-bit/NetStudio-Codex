@@ -17,7 +17,13 @@ DEFAULT_MAX_SEARCH_FILE_SIZE_BYTES = 1024 * 1024
 class SearchTextTool(Tool):
     """Search bounded regular UTF-8 files without following symlinks."""
 
-    def __init__(self, workspace_root: Path, max_files: int = DEFAULT_MAX_FILES, max_results: int = DEFAULT_MAX_RESULTS, max_file_size_bytes: int = DEFAULT_MAX_SEARCH_FILE_SIZE_BYTES) -> None:
+    def __init__(
+        self,
+        workspace_root: Path,
+        max_files: int = DEFAULT_MAX_FILES,
+        max_results: int = DEFAULT_MAX_RESULTS,
+        max_file_size_bytes: int = DEFAULT_MAX_SEARCH_FILE_SIZE_BYTES,
+    ) -> None:
         if max_files <= 0 or max_results <= 0 or max_file_size_bytes <= 0:
             raise ValueError("search limits must be greater than zero")
         self._workspace_root = workspace_root.resolve(strict=True)
@@ -29,7 +35,21 @@ class SearchTextTool(Tool):
 
     @property
     def metadata(self) -> ToolMetadata:
-        return ToolMetadata(name="search_text", description="Search literal text in bounded UTF-8 regular files inside the authorized workspace; line and column are 1-based and symlinks are not followed", capabilities=frozenset({ToolCapability.READ}), argument_schema={"type": "object", "properties": {"query": {"type": "string", "minLength": 1}, "path": {"type": "string", "minLength": 1, "default": "."}, "case_sensitive": {"type": "boolean", "default": False}}, "required": ["query"], "additionalProperties": False})
+        return ToolMetadata(
+            name="search_text",
+            description="Search literal text in bounded UTF-8 regular files inside the authorized workspace; line and column are 1-based and symlinks are not followed",
+            capabilities=frozenset({ToolCapability.READ}),
+            argument_schema={
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "minLength": 1},
+                    "path": {"type": "string", "minLength": 1, "default": "."},
+                    "case_sensitive": {"type": "boolean", "default": False},
+                },
+                "required": ["query"],
+                "additionalProperties": False,
+            },
+        )
 
     async def execute(self, arguments: dict[str, Any]) -> ToolResult:
         validation_error = self._validate_arguments(arguments)
@@ -44,9 +64,13 @@ class SearchTextTool(Tool):
         except (OSError, RuntimeError) as exc:
             return self._failure("search_failed", f"Path resolution failed: {exc}")
         if not root.is_relative_to(self._workspace_root):
-            return self._failure("path_outside_workspace", "Path resolves outside the authorized workspace")
+            return self._failure(
+                "path_outside_workspace", "Path resolves outside the authorized workspace"
+            )
         if is_internal_path(self._workspace_root, root):
-            return self._failure("reserved_internal_path", "Reserved NetStudio area is inaccessible")
+            return self._failure(
+                "reserved_internal_path", "Reserved NetStudio area is inaccessible"
+            )
         if not root.exists():
             return self._failure("path_not_found", "Path does not exist")
         if raw_root.is_symlink():
@@ -82,13 +106,28 @@ class SearchTextTool(Tool):
                     if len(matches) >= self._max_results:
                         results_truncated = True
                         break
-                    matches.append({"path": relative, "line": line_number, "column": column, "text": line})
+                    matches.append(
+                        {"path": relative, "line": line_number, "column": column, "text": line}
+                    )
                 if results_truncated:
                     break
             if results_truncated:
                 break
         root_relative = root.relative_to(self._workspace_root).as_posix() or "."
-        return ToolResult(success=True, output=json.dumps({"matches": matches}, ensure_ascii=False, sort_keys=True), metadata={"query": query, "root": root_relative, "case_sensitive": case_sensitive, "files_examined": files_examined, "matches_count": len(matches), "truncated": files_truncated or results_truncated, "skipped_invalid_utf8": skipped_invalid_utf8, "skipped_too_large": skipped_too_large})
+        return ToolResult(
+            success=True,
+            output=json.dumps({"matches": matches}, ensure_ascii=False, sort_keys=True),
+            metadata={
+                "query": query,
+                "root": root_relative,
+                "case_sensitive": case_sensitive,
+                "files_examined": files_examined,
+                "matches_count": len(matches),
+                "truncated": files_truncated or results_truncated,
+                "skipped_invalid_utf8": skipped_invalid_utf8,
+                "skipped_too_large": skipped_too_large,
+            },
+        )
 
     def _files_to_search(self, root: Path) -> tuple[list[Path], bool]:
         if root.is_file():
