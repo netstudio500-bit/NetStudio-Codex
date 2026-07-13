@@ -14,19 +14,26 @@ jobs:
       matrix:
         check: [ruff, black, mypy, pytest]
     steps:
-      - uses: actions/checkout@v4
+      - name: Quiet checkout
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git init -q
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git fetch -q --depth=1 origin "${GITHUB_SHA}"
+          git checkout -q FETCH_HEAD
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
       - name: Install Poetry
-        run: pip install poetry
+        run: pip install --quiet poetry >/dev/null 2>&1
       - name: Install project dependencies
-        run: poetry install --with dev --no-root
+        run: poetry install --quiet --with dev --no-root >/dev/null 2>&1
       - name: Run validation
         run: |
           case "${{ matrix.check }}" in
             ruff) poetry run ruff check . ;;
             black) poetry run black --check . ;;
             mypy) poetry run mypy netstudio ;;
-            pytest) poetry run pytest -v ;;
+            pytest) poetry run pytest -q --tb=short ;;
           esac
