@@ -118,9 +118,7 @@ class AgentRuntime:
             self.transition_to(RuntimeState.CANCELLED)
             return self._result(output=decision.output)
         if decision.kind is not DecisionKind.TOOL or not decision.tool_name:
-            return self._fail(
-                "invalid_decision", "Tool decision requires tool_name", iteration
-            )
+            return self._fail("invalid_decision", "Tool decision requires tool_name", iteration)
 
         self.transition_to(RuntimeState.WAITING_PERMISSION)
         permitted_registry = self._registry.view(self._context)
@@ -148,9 +146,7 @@ class AgentRuntime:
             self.transition_to(RuntimeState.FAILED)
         return self._result(failure=RuntimeFailure(code, message, iteration))
 
-    def _result(
-        self, output: str = "", failure: RuntimeFailure | None = None
-    ) -> RuntimeResult:
+    def _result(self, output: str = "", failure: RuntimeFailure | None = None) -> RuntimeResult:
         return RuntimeResult(
             state=self.state,
             output=output,
