@@ -8,9 +8,19 @@ from netstudio.tools.registry import (
     ToolRegistry,
     ToolRegistryView,
 )
+from netstudio.tools.shell import (
+    DEFAULT_OUTPUT_LIMIT_BYTES,
+    DEFAULT_TIMEOUT_SECONDS,
+    MAX_TIMEOUT_SECONDS,
+    ShellTool,
+)
 
 __all__ = [
+    "DEFAULT_OUTPUT_LIMIT_BYTES",
+    "DEFAULT_TIMEOUT_SECONDS",
     "DuplicateToolError",
+    "MAX_TIMEOUT_SECONDS",
+    "ShellTool",
     "Tool",
     "ToolCapability",
     "ToolMetadata",
