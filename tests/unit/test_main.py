@@ -5,7 +5,6 @@ import os
 import shlex
 import subprocess
 import sys
-from argparse import Namespace
 from pathlib import Path
 from typing import Any
 
@@ -14,7 +13,8 @@ import pytest
 from netstudio.core.agent import Agent, AgentRuntimeError
 from netstudio.llm.base import GenerationRequest, GenerationResponse, LLMProvider
 from netstudio.main import build_parser, build_policy, execute_task, interactive, main
-from netstudio.runtime import PolicySnapshot, ToolCapability
+from netstudio.runtime import PolicySnapshot
+from netstudio.runtime.capabilities import ToolCapability
 
 
 class FakeAgent:
@@ -100,7 +100,8 @@ def install_real_agent_factory(
 
 
 @pytest.mark.asyncio
-async def test_execute_task_direct_cli_path_crosses_agent_runtime_and_closes_provider() -> None:
+async def test_execute_task_direct_cli_path_crosses_agent_runtime_and_closes_provider(
+) -> None:
     provider = RuntimeProvider('{"action":"complete","content":"CLI OK"}')
     agent = Agent(name="cli-agent", provider=provider)
 
@@ -137,7 +138,9 @@ async def test_interactive_executes_and_remembers_turn(monkeypatch, capsys) -> N
 
 
 @pytest.mark.asyncio
-async def test_interactive_real_agent_uses_runtime_and_closes_provider(monkeypatch, capsys) -> None:
+async def test_interactive_real_agent_uses_runtime_and_closes_provider(
+    monkeypatch, capsys
+) -> None:
     provider = RuntimeProvider('{"action":"complete","content":"interactive OK"}')
     agent = Agent(name="cli-agent", provider=provider)
     inputs = iter(["first task", "sair"])
@@ -243,7 +246,9 @@ async def test_interactive_cli_preserves_explicit_policy_for_session(
     tmp_path: Path, monkeypatch, capsys
 ) -> None:
     provider = RuntimeProvider(
-        shell_responses(python_command("print('INTERACTIVE_SHELL_OK')"), "INTERACTIVE DONE")
+        shell_responses(
+            python_command("print('INTERACTIVE_SHELL_OK')"), "INTERACTIVE DONE"
+        )
     )
     captured: dict[str, Any] = {}
     install_real_agent_factory(monkeypatch, provider, captured)
