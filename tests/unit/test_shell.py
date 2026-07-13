@@ -144,7 +144,10 @@ async def test_shell_preserves_nonzero_exit_code_as_executed_result(tmp_path: Pa
 @pytest.mark.asyncio
 async def test_shell_timeout_is_real_and_process_does_not_continue(tmp_path: Path) -> None:
     marker = tmp_path / "late.txt"
-    script = f"import time, pathlib; time.sleep(2); pathlib.Path({str(marker)!r}).write_text('late')"
+    script = (
+        f"import time, pathlib; time.sleep(2); "
+        f"pathlib.Path({str(marker)!r}).write_text('late')"
+    )
 
     result = await ShellTool(tmp_path).execute(
         {"command": python_command(script), "timeout_seconds": 1}
