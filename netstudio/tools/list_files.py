@@ -1,7 +1,6 @@
 """Policy-gated deterministic workspace discovery."""
 
 import json
-import os
 from pathlib import Path
 from typing import Any
 
@@ -43,7 +42,7 @@ class ListFilesTool(Tool):
         )
 
     async def execute(self, arguments: dict[str, Any]) -> ToolResult:
-        """Validate, resolve, enumerate, sort, and bound workspace entries."""
+        """Validate, resolve, enumerate, and bound workspace entries."""
         validation_error = self._validate_arguments(arguments)
         if validation_error is not None:
             return self._failure("invalid_arguments", validation_error)
@@ -69,7 +68,6 @@ class ListFilesTool(Tool):
         except OSError as exc:
             return self._failure("list_failed", f"Unable to enumerate directory: {exc}")
 
-        entries.sort(key=lambda entry: entry["path"])
         truncated = len(entries) > self._max_entries
         selected = entries[: self._max_entries]
         root_relative = root.relative_to(self._workspace_root).as_posix() or "."
@@ -86,36 +84,26 @@ class ListFilesTool(Tool):
 
     def _enumerate(self, root: Path, recursive: bool) -> list[dict[str, str]]:
         entries: list[dict[str, str]] = []
-        if not recursive:
-            for child in root.iterdir():
-                entry = self._entry(child)
-                if entry is not None:
-                    entries.append(entry)
-            return entries
-
-        for current_root, directory_names, file_names in os.walk(root, followlinks=False):
-            current = Path(current_root)
-            directory_names.sort()
-            file_names.sort()
-            for name in directory_names:
-                entry = self._entry(current / name)
-                if entry is not None:
-                    entries.append(entry)
-            for name in file_names:
-                entry = self._entry(current / name)
-                if entry is not None:
-                    entries.append(entry)
+        self._visit(root, recursive, entries)
         return entries
+
+    def _visit(
+        self, directory: Path, recursive: bool, entries: list[dict[str, str]]
+    ) -> None:
+        for child in sorted(directory.iterdir(), key=lambda path: path.name):
+            entry = self._entry(child)
+            if entry is not None:
+                entries.append(entry)
+                if len(entries) > self._max_entries:
+                    return
+            if recursive and child.is_dir() and not child.is_symlink():
+                self._visit(child, recursive, entries)
+                if len(entries) > self._max_entries:
+                    return
 
     def _entry(self, path: Path) -> dict[str, str] | None:
         relative = path.relative_to(self._workspace_root).as_posix()
         if path.is_symlink():
-            try:
-                target = path.resolve(strict=False)
-            except (OSError, RuntimeError):
-                return {"path": relative, "type": "symlink"}
-            if not target.is_relative_to(self._workspace_root):
-                return {"path": relative, "type": "symlink"}
             return {"path": relative, "type": "symlink"}
         if path.is_dir():
             return {"path": relative, "type": "directory"}
