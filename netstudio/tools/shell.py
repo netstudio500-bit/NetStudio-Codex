@@ -185,9 +185,15 @@ class ShellTool(Tool):
                     stdout=asyncio.subprocess.DEVNULL,
                     stderr=asyncio.subprocess.DEVNULL,
                 )
-                await killer.wait()
-            except OSError:
+                taskkill_exit_code = await killer.wait()
+            except OSError as exc:
                 process.kill()
+                await process.wait()
+                raise RuntimeError(f"Failed to start taskkill: {exc}") from exc
+            if taskkill_exit_code != 0:
+                process.kill()
+                await process.wait()
+                raise RuntimeError(f"taskkill failed with exit code {taskkill_exit_code}")
         else:
             try:
                 os.killpg(process.pid, signal.SIGKILL)
