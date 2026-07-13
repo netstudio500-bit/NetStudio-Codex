@@ -100,8 +100,7 @@ def install_real_agent_factory(
 
 
 @pytest.mark.asyncio
-async def test_execute_task_direct_cli_path_crosses_agent_runtime_and_closes_provider(
-) -> None:
+async def test_execute_task_direct_cli_path_crosses_agent_runtime_and_closes_provider() -> None:
     provider = RuntimeProvider('{"action":"complete","content":"CLI OK"}')
     agent = Agent(name="cli-agent", provider=provider)
 
@@ -138,9 +137,7 @@ async def test_interactive_executes_and_remembers_turn(monkeypatch, capsys) -> N
 
 
 @pytest.mark.asyncio
-async def test_interactive_real_agent_uses_runtime_and_closes_provider(
-    monkeypatch, capsys
-) -> None:
+async def test_interactive_real_agent_uses_runtime_and_closes_provider(monkeypatch, capsys) -> None:
     provider = RuntimeProvider('{"action":"complete","content":"interactive OK"}')
     agent = Agent(name="cli-agent", provider=provider)
     inputs = iter(["first task", "sair"])
@@ -178,9 +175,10 @@ def test_help_documents_workspace_scoped_local_execution(capsys) -> None:
         build_parser().parse_args(["--help"])
 
     help_text = capsys.readouterr().out
+    normalized_help = " ".join(help_text.split())
     assert exit_info.value.code == 0
     assert "--allow-local-execution" in help_text
-    assert "inside the authorized workspace" in help_text
+    assert "inside the authorized workspace" in normalized_help
     assert "unrestricted" not in help_text.lower()
     assert "sandbox" not in help_text.lower()
 
