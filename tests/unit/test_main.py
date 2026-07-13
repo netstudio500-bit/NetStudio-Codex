@@ -240,9 +240,7 @@ async def test_interactive_cli_preserves_explicit_policy_for_session(
     tmp_path: Path, monkeypatch, capsys
 ) -> None:
     provider = RuntimeProvider(
-        shell_responses(
-            python_command("print('INTERACTIVE_SHELL_OK')"), "INTERACTIVE DONE"
-        )
+        shell_responses(python_command("print('INTERACTIVE_SHELL_OK')"), "INTERACTIVE DONE")
     )
     captured: dict[str, Any] = {}
     install_real_agent_factory(monkeypatch, provider, captured)
