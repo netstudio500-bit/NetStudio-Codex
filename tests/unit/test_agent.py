@@ -44,7 +44,9 @@ class TestAgent:
         assert agent.max_tokens == 2048
 
     @pytest.mark.asyncio
-    async def test_agent_execute_crosses_runtime_decision_source_and_provider(self) -> None:
+    async def test_agent_execute_crosses_runtime_decision_source_and_provider(
+        self,
+    ) -> None:
         provider = FakeProvider(['{"action":"complete","content":"runtime result"}'])
         agent = Agent(name="test-agent", system_prompt="Be useful", provider=provider)
 
@@ -57,14 +59,16 @@ class TestAgent:
         assert provider.requests[0].system_prompt == "Be useful"
 
     @pytest.mark.asyncio
-    async def test_agent_empty_registry_can_complete() -> None:
+    async def test_agent_empty_registry_can_complete(self) -> None:
         provider = FakeProvider(['{"action":"complete","content":"OK"}'])
         agent = Agent(name="test-agent", provider=provider)
 
         assert await agent.execute("finish without tools") == "OK"
 
     @pytest.mark.asyncio
-    async def test_agent_propagates_invalid_provider_decision_as_runtime_failure() -> None:
+    async def test_agent_propagates_invalid_provider_decision_as_runtime_failure(
+        self,
+    ) -> None:
         provider = FakeProvider(["arbitrary text"])
         agent = Agent(name="test-agent", provider=provider)
 
@@ -76,7 +80,7 @@ class TestAgent:
         assert error.value.failure.iteration == 1
 
     @pytest.mark.asyncio
-    async def test_agent_fails_when_model_requests_missing_tool() -> None:
+    async def test_agent_fails_when_model_requests_missing_tool(self) -> None:
         provider = FakeProvider(
             ['{"action":"tool","tool_name":"missing","arguments":{}}']
         )
