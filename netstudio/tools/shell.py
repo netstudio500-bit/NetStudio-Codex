@@ -4,7 +4,6 @@ import asyncio
 import os
 import shlex
 import signal
-import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +14,7 @@ DEFAULT_TIMEOUT_SECONDS = 30
 MAX_TIMEOUT_SECONDS = 120
 DEFAULT_OUTPUT_LIMIT_BYTES = 64 * 1024
 _READ_CHUNK_BYTES = 4096
+_CREATE_NEW_PROCESS_GROUP = 0x00000200
 
 
 class ShellTool(Tool):
@@ -150,9 +150,7 @@ class ShellTool(Tool):
             for token in tokens
         ]
 
-    async def _read_bounded(
-        self, stream: asyncio.StreamReader | None
-    ) -> tuple[str, bool]:
+    async def _read_bounded(self, stream: asyncio.StreamReader | None) -> tuple[str, bool]:
         if stream is None:
             return "", False
         captured = bytearray()
@@ -170,7 +168,7 @@ class ShellTool(Tool):
 
     def _process_group_options(self) -> dict[str, Any]:
         if os.name == "nt":
-            return {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
+            return {"creationflags": _CREATE_NEW_PROCESS_GROUP}
         return {"start_new_session": True}
 
     async def _terminate_process_tree(self, process: asyncio.subprocess.Process) -> None:
