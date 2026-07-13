@@ -145,8 +145,7 @@ async def test_shell_preserves_nonzero_exit_code_as_executed_result(tmp_path: Pa
 async def test_shell_timeout_is_real_and_process_does_not_continue(tmp_path: Path) -> None:
     marker = tmp_path / "late.txt"
     script = (
-        f"import time, pathlib; time.sleep(2); "
-        f"pathlib.Path({str(marker)!r}).write_text('late')"
+        f"import time, pathlib; time.sleep(2); " f"pathlib.Path({str(marker)!r}).write_text('late')"
     )
 
     result = await ShellTool(tmp_path).execute(
@@ -200,9 +199,7 @@ def test_shell_is_absent_from_empty_policy_and_present_when_explicitly_allowed(
     registry.register(ShellTool(tmp_path))
 
     assert registry.view(context(tmp_path)).names() == ()
-    assert registry.view(context(tmp_path, ToolCapability.LOCAL_EXECUTION)).names() == (
-        "shell",
-    )
+    assert registry.view(context(tmp_path, ToolCapability.LOCAL_EXECUTION)).names() == ("shell",)
 
 
 @pytest.mark.asyncio
