@@ -53,7 +53,7 @@ class Agent(BaseModel):
         """Inicializa o agente com provider e registry injetáveis."""
         super().__init__(**data)
         self._provider = provider or OllamaProvider(model=self.model)
-        self._registry = registry or ToolRegistry()
+        self._registry = registry if registry is not None else ToolRegistry()
 
     async def execute(self, task: str) -> str:
         """Executa uma tarefa pelo AgentRuntime e retorna seu resultado público."""
