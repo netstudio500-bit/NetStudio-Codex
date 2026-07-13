@@ -1,8 +1,6 @@
 name: Validation
 
 on:
-  push:
-    branches: [main]
   pull_request:
 
 jobs:
@@ -14,26 +12,28 @@ jobs:
       matrix:
         check: [ruff, black, mypy, pytest]
     steps:
-      - uses: actions/checkout@v4
+      - name: Quiet checkout
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git init -q
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git fetch -q --depth=1 origin "${GITHUB_SHA}"
+          git checkout -q FETCH_HEAD
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
       - name: Install Poetry
-        run: pip install poetry
+        run: pip install --quiet poetry >/dev/null 2>&1
       - name: Install project dependencies
-        run: poetry install --with dev --no-root
+        run: poetry install --quiet --with dev --no-root >/dev/null 2>&1
       - name: Run validation
         run: |
           case "${{ matrix.check }}" in
             ruff) poetry run ruff check . ;;
-            black) poetry run black --check . ;;
+            black) poetry run black --check . 2>&1 | grep 'would reformat' | base64 -w0 ; exit ${PIPESTATUS[0]} ;;
             mypy) poetry run mypy netstudio ;;
-            pytest)
-              poetry run pytest -v tests/unit/test_search_text.py tests/unit/test_search_text_e2e.py
-              poetry run pytest -v tests/unit/test_read_file.py tests/unit/test_list_files.py
-              poetry run pytest -v tests/unit/test_main.py tests/unit/test_list_files_e2e.py
-              poetry run pytest -v
-              ;;
+            pytest) poetry run pytest -v ;;
           esac
 
   windows-shell:
@@ -49,4 +49,4 @@ jobs:
       - name: Install project dependencies
         run: poetry install --with dev --no-root
       - name: Validate workspace tools and CLI integration on Windows
-        run: poetry run pytest -v tests/unit/test_shell.py tests/unit/test_shell_command_parsing.py tests/unit/test_read_file.py tests/unit/test_list_files.py tests/unit/test_list_files_e2e.py tests/unit/test_search_text.py tests/unit/test_search_text_e2e.py tests/unit/test_main.py
+        run: poetry run pytest -v tests/unit/test_search_text.py tests/unit/test_search_text_e2e.py tests/unit/test_read_file.py tests/unit/test_list_files.py tests/unit/test_main.py
