@@ -11,6 +11,16 @@ from netstudio.llm.base import GenerationRequest, GenerationResponse, LLMProvide
 logger = get_logger(__name__)
 
 
+def _json_object(response: httpx.Response, operation: str) -> dict[str, Any]:
+    try:
+        data = response.json()
+    except ValueError as exc:
+        raise RuntimeError(f"Ollama returned invalid JSON while {operation}") from exc
+    if not isinstance(data, dict):
+        raise RuntimeError(f"Ollama returned a non-object response while {operation}")
+    return data
+
+
 class OllamaProvider(LLMProvider):
     """Ollama language model provider implementation."""
 
@@ -49,8 +59,20 @@ class OllamaProvider(LLMProvider):
                 response = await client.get(f"{self._base_url}/api/tags")
                 if response.status_code != 200:
                     raise ConnectionError(f"Ollama returned status {response.status_code}")
-                data: dict[str, Any] = response.json()
-                models = [str(model["name"]) for model in data.get("models", [])]
+                data = _json_object(response, "listing models")
+                raw_models = data.get("models")
+                if not isinstance(raw_models, list):
+                    raise RuntimeError("Ollama model response must contain a models list")
+                models: list[str] = []
+                for index, model in enumerate(raw_models):
+                    if not isinstance(model, dict):
+                        raise RuntimeError(f"Ollama model at index {index} must be an object")
+                    name = model.get("name")
+                    if not isinstance(name, str) or not name:
+                        raise RuntimeError(
+                            f"Ollama model at index {index} must have a non-empty name"
+                        )
+                    models.append(name)
                 logger.info(f"Found {len(models)} models in Ollama")
                 return models
         except httpx.RequestError as exc:
@@ -85,8 +107,10 @@ class OllamaProvider(LLMProvider):
                 if response.status_code != 200:
                     raise RuntimeError(f"Ollama returned status {response.status_code}")
 
-                data: dict[str, Any] = response.json()
-                generated_text = str(data.get("response", ""))
+                data = _json_object(response, "generating text")
+                generated_text = data.get("response")
+                if not isinstance(generated_text, str):
+                    raise RuntimeError("Ollama generation response must contain response text")
                 logger.info(f"Generated {len(generated_text)} characters")
 
                 prompt_tokens = data.get("prompt_eval_count")
@@ -107,9 +131,6 @@ class OllamaProvider(LLMProvider):
         except httpx.RequestError as exc:
             logger.error(f"Generation request failed: {exc}")
             raise ConnectionError(f"Failed to connect to Ollama: {exc}") from exc
-        except (KeyError, ValueError, TypeError) as exc:
-            logger.error(f"Invalid response format: {exc}")
-            raise RuntimeError(f"Invalid response from Ollama: {exc}") from exc
 
     async def close(self) -> None:
         """Close the connection and cleanup resources."""

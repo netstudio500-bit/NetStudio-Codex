@@ -42,6 +42,10 @@ class Logger:
         """Log error message."""
         self.logger.error(message, **kwargs)
 
+    def exception(self, message: str, **kwargs: Any) -> None:
+        """Log an exception with its active traceback."""
+        self.logger.exception(message, **kwargs)
+
     def critical(self, message: str, **kwargs: Any) -> None:
         """Log critical message."""
         self.logger.critical(message, **kwargs)

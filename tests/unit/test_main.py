@@ -12,13 +12,21 @@ from netstudio.main import build_parser, execute_task, interactive
 class FakeAgent:
     """Minimal agent double for CLI orchestration tests."""
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        execution_error: Exception | None = None,
+        close_error: Exception | None = None,
+    ) -> None:
         self.tasks: list[str] = []
         self.memories: list[str] = []
         self.closed = False
+        self.execution_error = execution_error
+        self.close_error = close_error
 
     async def execute(self, task: str) -> str:
         self.tasks.append(task)
+        if self.execution_error is not None:
+            raise self.execution_error
         return f"result: {task}"
 
     async def remember(self, memory: str) -> None:
@@ -26,6 +34,8 @@ class FakeAgent:
 
     async def close(self) -> None:
         self.closed = True
+        if self.close_error is not None:
+            raise self.close_error
 
 
 class RuntimeProvider(LLMProvider):
@@ -75,6 +85,33 @@ async def test_execute_task_closes_provider_after_runtime_failure() -> None:
         await execute_task(agent, "fail")
 
     assert provider.closed is True
+
+
+@pytest.mark.asyncio
+async def test_execute_task_propagates_cleanup_failure() -> None:
+    agent = FakeAgent(close_error=RuntimeError("cleanup failed"))
+
+    with pytest.raises(RuntimeError, match="cleanup failed"):
+        await execute_task(agent, "work")
+
+    assert agent.closed is True
+
+
+@pytest.mark.asyncio
+async def test_execute_task_preserves_operation_and_cleanup_failures() -> None:
+    agent = FakeAgent(
+        execution_error=ValueError("execution failed"),
+        close_error=RuntimeError("cleanup failed"),
+    )
+
+    with pytest.raises(ExceptionGroup) as error:
+        await execute_task(agent, "work")
+
+    assert [str(exc) for exc in error.value.exceptions] == [
+        "execution failed",
+        "cleanup failed",
+    ]
+    assert agent.closed is True
 
 
 @pytest.mark.asyncio

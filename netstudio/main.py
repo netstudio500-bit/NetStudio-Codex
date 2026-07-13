@@ -11,12 +11,27 @@ from netstudio.core.logger import get_logger
 logger = get_logger(__name__)
 
 
+async def _close_agent(agent: Agent, active_error: BaseException | None = None) -> None:
+    try:
+        await agent.close()
+    except BaseException as close_error:
+        if active_error is None:
+            raise
+        raise BaseExceptionGroup(
+            "Agent operation and cleanup both failed",
+            [active_error, close_error],
+        ) from None
+
+
 async def execute_task(agent: Agent, task: str) -> str:
     """Executa uma tarefa e garante o encerramento do provider."""
     try:
-        return await agent.execute(task)
-    finally:
-        await agent.close()
+        result = await agent.execute(task)
+    except BaseException as exc:
+        await _close_agent(agent, exc)
+        raise
+    await _close_agent(agent)
+    return result
 
 
 async def interactive(agent: Agent) -> None:
@@ -36,8 +51,10 @@ async def interactive(agent: Agent) -> None:
             result = await agent.execute(task)
             print(result)
             await agent.remember(f"Tarefa: {task}\nResposta: {result}")
-    finally:
-        await agent.close()
+    except BaseException as exc:
+        await _close_agent(agent, exc)
+        raise
+    await _close_agent(agent)
 
 
 async def main(args: Namespace) -> None:
@@ -86,7 +103,7 @@ def cli() -> None:
         logger.info("Application terminated by user")
         sys.exit(0)
     except Exception as exc:
-        logger.error(f"Fatal error: {exc}")
+        logger.exception(f"Fatal error: {exc}")
         sys.exit(1)
 
 

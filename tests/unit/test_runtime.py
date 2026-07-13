@@ -57,6 +57,21 @@ class EchoTool(Tool):
         return ToolResult(success=True, output=str(arguments["value"]))
 
 
+class ExplodingTool(Tool):
+    """Tool double that raises instead of returning a ToolResult."""
+
+    @property
+    def metadata(self) -> ToolMetadata:
+        return ToolMetadata(
+            name="explode",
+            description="Raise an execution error",
+            capabilities=frozenset({ToolCapability.READ}),
+        )
+
+    async def execute(self, arguments: dict[str, Any]) -> ToolResult:
+        raise ValueError("invalid tool input")
+
+
 def context(*capabilities: ToolCapability) -> ExecutionContext:
     return ExecutionContext(
         scope=ScopeRef("test-scope"),
@@ -200,3 +215,21 @@ async def test_failed_tool_produces_structured_runtime_failure() -> None:
     assert result.failure is not None
     assert result.failure.code == "tool_execution_failed"
     assert result.failure.message == "echo failed"
+
+
+@pytest.mark.asyncio
+async def test_tool_exception_preserves_its_cause() -> None:
+    registry = ToolRegistry()
+    registry.register(ExplodingTool())
+    agent_runtime = runtime(
+        [RuntimeDecision(DecisionKind.TOOL, "explode")],
+        registry,
+        context(ToolCapability.READ),
+    )
+
+    result = await agent_runtime.run("explode")
+
+    assert result.failure is not None
+    assert result.failure.code == "tool_execution_error"
+    assert result.failure.message == "Tool explode raised ValueError: invalid tool input"
+    assert isinstance(result.failure.cause, ValueError)
