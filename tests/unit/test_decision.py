@@ -89,9 +89,7 @@ def test_parse_tool_without_name() -> None:
 
 
 def test_parse_tool_with_invalid_arguments() -> None:
-    with pytest.raises(
-        DecisionParseError, match="arguments must be a JSON object"
-    ):
+    with pytest.raises(DecisionParseError, match="arguments must be a JSON object"):
         parse_runtime_decision(
             '{"action":"tool","tool_name":"reader","arguments":[]}'
         )
