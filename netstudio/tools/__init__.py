@@ -10,6 +10,12 @@ from netstudio.tools.registry import (
     ToolRegistry,
     ToolRegistryView,
 )
+from netstudio.tools.search_text import (
+    DEFAULT_MAX_FILES,
+    DEFAULT_MAX_RESULTS,
+    DEFAULT_MAX_SEARCH_FILE_SIZE_BYTES,
+    SearchTextTool,
+)
 from netstudio.tools.shell import (
     DEFAULT_OUTPUT_LIMIT_BYTES,
     DEFAULT_TIMEOUT_SECONDS,
@@ -19,13 +25,17 @@ from netstudio.tools.shell import (
 
 __all__ = [
     "DEFAULT_MAX_ENTRIES",
+    "DEFAULT_MAX_FILES",
     "DEFAULT_MAX_FILE_SIZE_BYTES",
+    "DEFAULT_MAX_RESULTS",
+    "DEFAULT_MAX_SEARCH_FILE_SIZE_BYTES",
     "DEFAULT_OUTPUT_LIMIT_BYTES",
     "DEFAULT_TIMEOUT_SECONDS",
     "DuplicateToolError",
     "ListFilesTool",
     "MAX_TIMEOUT_SECONDS",
     "ReadFileTool",
+    "SearchTextTool",
     "ShellTool",
     "Tool",
     "ToolCapability",
