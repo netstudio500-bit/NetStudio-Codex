@@ -48,6 +48,12 @@ class EchoTool(Tool):
             name="echo",
             description="Echo one value",
             capabilities=frozenset({self._capability}),
+            argument_schema={
+                "type": "object",
+                "properties": {"value": {}},
+                "required": ["value"],
+                "additionalProperties": False,
+            },
         )
 
     async def execute(self, arguments: dict[str, Any]) -> ToolResult:
@@ -157,6 +163,25 @@ async def test_runtime_does_not_execute_policy_denied_tool() -> None:
     assert result.state is RuntimeState.FAILED
     assert result.failure is not None
     assert result.failure.code == "tool_denied_or_missing"
+    assert tool.executions == []
+
+
+@pytest.mark.asyncio
+async def test_runtime_does_not_execute_tool_with_invalid_arguments() -> None:
+    tool = EchoTool()
+    registry = ToolRegistry()
+    registry.register(tool)
+    agent_runtime = runtime(
+        [RuntimeDecision(DecisionKind.TOOL, "echo", {"unexpected": "value"})],
+        registry,
+        context(ToolCapability.READ),
+    )
+
+    result = await agent_runtime.run("invalid arguments")
+
+    assert result.state is RuntimeState.FAILED
+    assert result.failure is not None
+    assert result.failure.code == "invalid_tool_arguments"
     assert tool.executions == []
 
 

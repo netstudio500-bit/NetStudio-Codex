@@ -23,7 +23,7 @@ pydantic-settings = "^2.0"
 requests = "^2.31"
 aiohttp = "^3.9"
 httpx = "^0.27"
-fastapi = "^0.104"
+fastapi = "^0.139"
 uvicorn = "^0.24"
 python-dotenv = "^1.0"
 loguru = "^0.7"
@@ -33,12 +33,13 @@ scikit-learn = "^1.3"
 numpy = "^1.26"
 pydantic-extra-types = "^2.0"
 typing-extensions = "^4.8"
+jsonschema = "^4.23"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^7.4"
-pytest-asyncio = "^0.21"
-pytest-cov = "^4.1"
-black = "^23.11"
+pytest = "^9.1"
+pytest-asyncio = "^1.4"
+pytest-cov = "^7.1"
+black = "^26.5"
 isort = "^5.13"
 ruff = "^0.1"
 mypy = "^1.7"
@@ -47,6 +48,7 @@ pre-commit = "^3.5"
 ipython = "^8.18"
 pytest-mock = "^3.12"
 faker = "^20.1"
+types-jsonschema = "^4.26"
 
 [tool.poetry.group.docs.dependencies]
 sphinx = "^7.2"
@@ -82,7 +84,7 @@ extend-exclude = '''
 [tool.isort]
 profile = "black"
 line_length = 100
-multi_line_mode = 3
+multi_line_output = 3
 include_trailing_comma = true
 force_grid_wrap = 0
 use_parentheses = true

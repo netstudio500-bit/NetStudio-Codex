@@ -4,6 +4,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Protocol
 
+from jsonschema import Draft202012Validator
+
 from netstudio.runtime.context import ExecutionContext
 from netstudio.runtime.state import TERMINAL_STATES, RuntimeState, validate_transition
 from netstudio.tools.base import ToolResult
@@ -126,6 +128,17 @@ class AgentRuntime:
             tool = permitted_registry.get(decision.tool_name)
         except ToolNotFoundError as exc:
             return self._fail("tool_denied_or_missing", str(exc), iteration)
+
+        validation_errors = sorted(
+            Draft202012Validator(tool.metadata.argument_schema).iter_errors(decision.arguments),
+            key=lambda error: list(error.absolute_path),
+        )
+        if validation_errors:
+            return self._fail(
+                "invalid_tool_arguments",
+                validation_errors[0].message,
+                iteration,
+            )
 
         self.transition_to(RuntimeState.RUNNING_TOOL)
         tool_result = await tool.execute(decision.arguments)

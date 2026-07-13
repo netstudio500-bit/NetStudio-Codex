@@ -1,5 +1,7 @@
 """Policy-filtered tool registry."""
 
+from jsonschema import Draft202012Validator
+
 from netstudio.runtime.context import ExecutionContext
 from netstudio.tools.base import Tool
 
@@ -23,6 +25,7 @@ class ToolRegistry:
         name = tool.metadata.name
         if name in self._tools:
             raise DuplicateToolError(f"Tool already registered: {name}")
+        Draft202012Validator.check_schema(tool.metadata.argument_schema)
         self._tools[name] = tool
 
     def get(self, name: str) -> Tool:

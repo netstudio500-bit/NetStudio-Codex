@@ -67,7 +67,7 @@ class Agent(BaseModel):
 
     async def execute(self, task: str) -> str:
         """Executa uma tarefa pelo AgentRuntime e retorna seu resultado público."""
-        logger.info(f"Executing task through AgentRuntime: {task}")
+        logger.info("Executing task through AgentRuntime")
         execution_context = self._execution_context()
         decision_source = LLMDecisionSource(
             provider=self._provider,

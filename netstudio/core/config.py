@@ -3,17 +3,19 @@
 from functools import lru_cache
 from typing import Any, Optional
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Config(BaseSettings):
     """Configuração centralizada da aplicação."""
 
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False)
+
     # App
     app_name: str = "NetStudio-Codex"
     app_version: str = "0.1.0"
     app_env: str = "development"
-    debug: bool = True
+    debug: bool = False
     log_level: str = "INFO"
 
     # Ollama
@@ -29,12 +31,13 @@ class Config(BaseSettings):
     vector_store_path: str = "./data/vector_store"
 
     # API
-    api_host: str = "0.0.0.0"
+    api_host: str = "127.0.0.1"
     api_port: int = 8000
     api_workers: int = 4
+    allowed_origins: str = "http://localhost:3000,http://localhost:8000"
 
     # WebSocket
-    websocket_host: str = "0.0.0.0"
+    websocket_host: str = "127.0.0.1"
     websocket_port: int = 8001
 
     # Memory
@@ -56,12 +59,6 @@ class Config(BaseSettings):
     # Tools
     tools_timeout: int = 30
     max_tool_workers: int = 4
-
-    class Config:
-        """Pydantic config."""
-
-        env_file = ".env"
-        case_sensitive = False
 
     def get(self, key: str, default: Optional[Any] = None) -> Any:
         """Get configuration value."""
