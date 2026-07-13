@@ -8,11 +8,13 @@ from netstudio.llm.base import GenerationRequest, GenerationResponse, LLMProvide
 from netstudio.runtime import (
     DecisionKind,
     DecisionParseError,
+    ExecutionContext,
     LLMDecisionSource,
+    PolicySnapshot,
+    ScopeRef,
     parse_runtime_decision,
 )
 from netstudio.tools import Tool, ToolCapability, ToolMetadata, ToolRegistry, ToolResult
-from netstudio.runtime import ExecutionContext, PolicySnapshot, ScopeRef
 
 
 class StaticProvider(LLMProvider):
@@ -87,7 +89,9 @@ def test_parse_tool_without_name() -> None:
 
 
 def test_parse_tool_with_invalid_arguments() -> None:
-    with pytest.raises(DecisionParseError, match="arguments must be a JSON object"):
+    with pytest.raises(
+        DecisionParseError, match="arguments must be a JSON object"
+    ):
         parse_runtime_decision(
             '{"action":"tool","tool_name":"reader","arguments":[]}'
         )
