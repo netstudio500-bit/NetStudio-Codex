@@ -99,7 +99,8 @@ async def test_runtime_stops_at_max_iterations() -> None:
     registry = ToolRegistry()
     registry.register(tool)
     decisions = [
-        RuntimeDecision(DecisionKind.TOOL, "echo", {"value": index}) for index in range(2)
+        RuntimeDecision(DecisionKind.TOOL, "echo", {"value": index})
+        for index in range(2)
     ]
     agent_runtime = runtime(
         decisions, registry, context(ToolCapability.READ), max_iterations=2
