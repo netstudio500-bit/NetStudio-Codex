@@ -144,9 +144,11 @@ class ShellTool(Tool):
             return shlex.split(command, posix=True)
         tokens = shlex.split(command, posix=False)
         return [
-            token[1:-1]
-            if len(token) >= 2 and token[0] == token[-1] and token[0] in {'"', "'"}
-            else token
+            (
+                token[1:-1]
+                if len(token) >= 2 and token[0] == token[-1] and token[0] in {'"', "'"}
+                else token
+            )
             for token in tokens
         ]
 
