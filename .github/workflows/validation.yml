@@ -19,9 +19,9 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install Poetry
-        run: pip install --quiet poetry
+        run: pip install --quiet poetry >/dev/null 2>&1
       - name: Install project dependencies
-        run: poetry install --quiet --with dev --no-root
+        run: poetry install --quiet --with dev --no-root >/dev/null 2>&1
       - name: Run validation
         run: |
           case "${{ matrix.check }}" in
