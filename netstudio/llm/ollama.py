@@ -21,9 +21,7 @@ class OllamaProvider(LLMProvider):
         self._model = model or config.ollama_model
         self._timeout = 30.0
         self._client: Optional[httpx.AsyncClient] = None
-        logger.info(
-            f"Initialized OllamaProvider: base_url={self._base_url}, model={self._model}"
-        )
+        logger.info(f"Initialized OllamaProvider: base_url={self._base_url}, model={self._model}")
 
     @property
     def name(self) -> str:
@@ -42,9 +40,7 @@ class OllamaProvider(LLMProvider):
                 return is_healthy
         except httpx.RequestError as exc:
             logger.error(f"Ollama connection error: {exc}")
-            raise ConnectionError(
-                f"Failed to connect to Ollama at {self._base_url}"
-            ) from exc
+            raise ConnectionError(f"Failed to connect to Ollama at {self._base_url}") from exc
 
     async def list_models(self) -> list[str]:
         """List available models in Ollama."""
