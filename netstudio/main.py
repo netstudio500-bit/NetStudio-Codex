@@ -8,7 +8,8 @@ from pathlib import Path
 from netstudio.core.agent import Agent
 from netstudio.core.config import get_config
 from netstudio.core.logger import get_logger
-from netstudio.runtime import PolicySnapshot, ToolCapability
+from netstudio.runtime import PolicySnapshot
+from netstudio.runtime.capabilities import ToolCapability
 
 logger = get_logger(__name__)
 
