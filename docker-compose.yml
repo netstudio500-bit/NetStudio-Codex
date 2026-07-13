@@ -5,7 +5,7 @@ services:
     image: ollama/ollama:latest
     container_name: netstudio-ollama
     ports:
-      - "11434:11434"
+      - "${OLLAMA_BIND_ADDRESS:-127.0.0.1}:11434:11434"
     environment:
       - OLLAMA_HOST=0.0.0.0:11434
     volumes:
@@ -19,12 +19,13 @@ services:
       dockerfile: Dockerfile
     container_name: netstudio-codex
     ports:
-      - "8000:8000"
-      - "8001:8001"
+      - "${API_BIND_ADDRESS:-127.0.0.1}:8000:8000"
+      - "${WEBSOCKET_BIND_ADDRESS:-127.0.0.1}:8001:8001"
     environment:
       - OLLAMA_BASE_URL=http://ollama:11434
-      - DATABASE_URL=postgresql://netstudio:netstudio@postgres:5432/netstudio
+      - DATABASE_URL=postgresql://netstudio:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/netstudio
       - APP_ENV=production
+      - DEBUG=false
     depends_on:
       - ollama
       - postgres
@@ -40,7 +41,7 @@ services:
     container_name: netstudio-postgres
     environment:
       - POSTGRES_USER=netstudio
-      - POSTGRES_PASSWORD=netstudio
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       - POSTGRES_DB=netstudio
     volumes:
       - postgres_data:/var/lib/postgresql/data

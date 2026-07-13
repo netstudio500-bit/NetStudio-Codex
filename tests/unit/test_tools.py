@@ -3,6 +3,7 @@
 from typing import Any
 
 import pytest
+from jsonschema.exceptions import SchemaError
 
 from netstudio.runtime import ExecutionContext, PolicySnapshot, ScopeRef
 from netstudio.tools import (
@@ -19,8 +20,18 @@ from netstudio.tools import (
 class CapabilityTool(Tool):
     """Concrete tool with configurable capabilities for registry tests."""
 
-    def __init__(self, name: str, *capabilities: ToolCapability) -> None:
-        self._metadata = ToolMetadata(name, "test tool", frozenset(capabilities))
+    def __init__(
+        self,
+        name: str,
+        *capabilities: ToolCapability,
+        argument_schema: dict[str, Any] | None = None,
+    ) -> None:
+        self._metadata = ToolMetadata(
+            name,
+            "test tool",
+            frozenset(capabilities),
+            argument_schema or {},
+        )
 
     @property
     def metadata(self) -> ToolMetadata:
@@ -49,6 +60,18 @@ def test_registry_rejects_duplicate_tool_name() -> None:
 
     with pytest.raises(DuplicateToolError, match="reader"):
         registry.register(CapabilityTool("reader", ToolCapability.WRITE))
+
+
+def test_registry_rejects_invalid_argument_schema() -> None:
+    registry = ToolRegistry()
+    tool = CapabilityTool(
+        "reader",
+        ToolCapability.READ,
+        argument_schema={"type": "unsupported"},
+    )
+
+    with pytest.raises(SchemaError):
+        registry.register(tool)
 
 
 def test_registry_reports_missing_tool() -> None:
