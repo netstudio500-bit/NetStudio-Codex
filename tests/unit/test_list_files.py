@@ -8,7 +8,13 @@ import pytest
 
 from netstudio.runtime import ExecutionContext, PolicySnapshot, ScopeRef
 from netstudio.runtime.capabilities import ToolCapability
-from netstudio.tools import DEFAULT_MAX_ENTRIES, ListFilesTool, ReadFileTool, ShellTool, ToolRegistry
+from netstudio.tools import (
+    DEFAULT_MAX_ENTRIES,
+    ListFilesTool,
+    ReadFileTool,
+    ShellTool,
+    ToolRegistry,
+)
 
 
 def entries(result) -> list[dict[str, str]]:
@@ -107,7 +113,9 @@ async def test_list_files_recurses_with_relative_deterministic_paths(tmp_path: P
         {"path": "src/module.txt", "type": "file"},
         {"path": "z.txt", "type": "file"},
     ]
-    assert [entry["path"] for entry in listed] == sorted(entry["path"] for entry in listed)
+    assert [entry["path"] for entry in listed] == sorted(
+        entry["path"] for entry in listed
+    )
     assert all(not Path(entry["path"]).is_absolute() for entry in listed)
     assert result.metadata["recursive"] is True
     assert result.metadata["count"] == 4
@@ -285,7 +293,9 @@ def test_local_execution_does_not_permit_file_tools(tmp_path: Path) -> None:
 
 
 def test_read_permits_both_file_tools_and_not_shell(tmp_path: Path) -> None:
-    assert registry_with_file_tools(tmp_path).view(context(tmp_path, ToolCapability.READ)).names() == (
+    assert registry_with_file_tools(tmp_path).view(
+        context(tmp_path, ToolCapability.READ)
+    ).names() == (
         "read_file",
         "list_files",
     )
