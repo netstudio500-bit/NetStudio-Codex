@@ -65,7 +65,9 @@ def build_parser() -> ArgumentParser:
     """Cria o parser da CLI."""
     parser = ArgumentParser(description="NetStudio-Codex")
     parser.add_argument("task", nargs="?", help="Task to execute")
-    parser.add_argument("-i", "--interactive", action="store_true", help="Start interactive mode")
+    parser.add_argument(
+        "-i", "--interactive", action="store_true", help="Start interactive mode"
+    )
     parser.add_argument("--model", help="Override the configured Ollama model")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
     parser.add_argument(
