@@ -71,14 +71,10 @@ def python_command(script: str) -> str:
     return shlex.join(argv)
 
 
-def tool_responses(
-    tool_name: str, arguments: dict[str, Any], final: str
-) -> list[str]:
+def tool_responses(tool_name: str, arguments: dict[str, Any], final: str) -> list[str]:
     """Return one tool decision followed by explicit completion."""
     return [
-        json.dumps(
-            {"action": "tool", "tool_name": tool_name, "arguments": arguments}
-        ),
+        json.dumps({"action": "tool", "tool_name": tool_name, "arguments": arguments}),
         json.dumps({"action": "complete", "content": final}),
     ]
 
@@ -159,9 +155,7 @@ async def test_interactive_real_agent_uses_runtime_and_closes_provider(monkeypat
 
 
 def test_parser_accepts_explicit_capability_flags() -> None:
-    args = build_parser().parse_args(
-        ["do work", "--allow-read", "--allow-local-execution"]
-    )
+    args = build_parser().parse_args(["do work", "--allow-read", "--allow-local-execution"])
 
     assert args.allow_read is True
     assert args.allow_local_execution is True
@@ -254,9 +248,7 @@ async def test_cli_with_local_execution_runs_shell_in_workspace_and_completes(
     await main(args)
 
     output = capsys.readouterr().out
-    assert captured["policy"] == PolicySnapshot(
-        frozenset({ToolCapability.LOCAL_EXECUTION})
-    )
+    assert captured["policy"] == PolicySnapshot(frozenset({ToolCapability.LOCAL_EXECUTION}))
     assert captured["workspace_root"] == tmp_path.resolve()
     assert marker.read_text() == str(tmp_path.resolve())
     assert "Local process execution authorized for this workspace." in output
