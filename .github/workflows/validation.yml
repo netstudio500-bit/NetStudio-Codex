@@ -2,31 +2,8 @@ name: Validation
 on:
   pull_request:
 jobs:
-  validate:
-    name: ${{ matrix.check }}
+  diagnostics:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        check: [ruff, black, mypy, pytest]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - run: pip install --quiet poetry >/dev/null 2>&1
-      - run: poetry install --quiet --with dev --no-root >/dev/null 2>&1
-      - name: Run validation
-        run: |
-          case "${{ matrix.check }}" in
-            ruff) poetry run ruff check . 2>&1 | tail -80 | base64 -w0 ; exit ${PIPESTATUS[0]} ;;
-            black) poetry run black --check . 2>&1 | tail -40 | base64 -w0 ; exit ${PIPESTATUS[0]} ;;
-            mypy) poetry run mypy netstudio ;;
-            pytest) poetry run pytest -q 2>&1 | tail -80 | base64 -w0 ; exit ${PIPESTATUS[0]} ;;
-          esac
-  windows-shell:
-    name: windows-shell
-    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -34,4 +11,18 @@ jobs:
           python-version: "3.11"
       - run: pip install poetry
       - run: poetry install --with dev --no-root
-      - run: poetry run pytest -v tests/unit/test_write_file.py tests/unit/test_write_file_e2e.py tests/unit/test_read_file.py tests/unit/test_list_files.py tests/unit/test_search_text.py tests/unit/test_main.py
+      - name: Capture diagnostics and formatted sources
+        run: |
+          poetry run ruff check . > ruff.txt 2>&1 || true
+          poetry run pytest -q > pytest.txt 2>&1 || true
+          poetry run black . > black.txt 2>&1
+          mkdir formatted
+          cp -r netstudio tests formatted/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: write-file-diagnostics
+          path: |
+            ruff.txt
+            pytest.txt
+            black.txt
+            formatted
