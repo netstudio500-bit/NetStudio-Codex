@@ -87,9 +87,7 @@ class ListFilesTool(Tool):
         self._visit(root, recursive, entries)
         return entries
 
-    def _visit(
-        self, directory: Path, recursive: bool, entries: list[dict[str, str]]
-    ) -> None:
+    def _visit(self, directory: Path, recursive: bool, entries: list[dict[str, str]]) -> None:
         for child in sorted(directory.iterdir(), key=lambda path: path.name):
             entry = self._entry(child)
             if entry is not None:
