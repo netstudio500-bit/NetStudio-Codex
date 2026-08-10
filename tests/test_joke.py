@@ -17,7 +17,7 @@ class DummyResponse:
 
 
 class DummyAResponse(DummyResponse):
-    async def json(self):
+    def json(self):
         return self._data
 
 
