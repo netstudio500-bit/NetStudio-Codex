@@ -7,6 +7,7 @@ const bodyParser = require('body-parser')
 
 const initDb = require('./database/init')
 const ll = require('./llama/llama')
+const rag = require('./rag/index')
 
 const app = express()
 const server = http.createServer(app)
@@ -35,6 +36,29 @@ app.post('/api/chat', async (req,res)=>{
   }catch(err){
     console.error(err)
     res.status(500).json({error:err.message})
+  }
+})
+
+// RAG endpoints
+app.post('/api/rag/index', async (req,res)=>{
+  try{
+    const root = req.body.root || path.join(__dirname, '..', 'workspace')
+    const result = await rag.indexWorkspace(root)
+    res.json({ok:true, result})
+  }catch(e){
+    console.error(e)
+    res.status(500).json({error:e.message})
+  }
+})
+
+app.post('/api/rag/search', async (req,res)=>{
+  try{
+    const {query,k} = req.body
+    const results = await rag.semanticSearch(query, {k: k || 5})
+    res.json({ok:true, results})
+  }catch(e){
+    console.error(e)
+    res.status(500).json({error:e.message})
   }
 })
 

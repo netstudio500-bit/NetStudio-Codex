@@ -3,13 +3,15 @@ import FileExplorer from './components/FileExplorer'
 import Editor from './components/Editor'
 import ChatSidebar from './components/ChatSidebar'
 import Terminal from './components/Terminal'
+import SearchPanel from './components/SearchPanel'
 
 export default function App(){
   return (
     <div className="h-screen flex">
-      <aside className="w-72 border-r border-gray-800 p-2 bg-gray-900">
+      <aside className="w-80 border-r border-gray-800 p-3 bg-gray-900">
         <div className="mb-4 text-lg font-semibold">Freebuff Local</div>
         <FileExplorer />
+        <SearchPanel />
         <ChatSidebar />
       </aside>
       <main className="flex-1 flex flex-col">
