@@ -1,0 +1,17 @@
+version: '3.8'
+services:
+  frontend:
+    build: ./docker/frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+    depends_on:
+      - backend
+  backend:
+    build: ./docker/backend
+    ports:
+      - "5174:5174"
+    volumes:
+      - ./backend:/app
+      - ./models:/app/models
